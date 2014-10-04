@@ -3,9 +3,10 @@
   :url "http://example.com/FIXME"
   :min-lein-version "2.0.0"
   :dependencies [[org.clojure/clojure "1.6.0"]
-
+                 [crypto-password "0.1.3"]
                  [com.datomic/datomic-free "0.9.4899"]
-                 [cddr/integrity "0.3.0-SNAPSHOT"]
+
+                 [cddr/integrity "0.3.1-SNAPSHOT"]
                  [ring/ring-json "0.3.1"]
                  [ring/ring-defaults "0.1.2"]
                  [compojure "1.1.9"]
