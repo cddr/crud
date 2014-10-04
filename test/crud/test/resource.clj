@@ -10,53 +10,34 @@ HTTP method, that does corresponding thing on an underlying datomic database."
             [compojure.core :as c]
             [ring.mock.request :as client]
             [ring.middleware.defaults :refer :all]
-            [ring.middleware.json :refer [wrap-json-body wrap-json-response]]
+            [ring.middleware.format :refer [wrap-restful-format]]
             [cheshire.core :refer [parse-string generate-string]]))
 
 (defn path-prefix [resource] (str "/" (clojure.string/lower-case (:name resource))))
 
+(r/defresource User
+  {:schema {:user/id Int
+            :email Str
+            :name Str}
+   :uniqueness {:user/id :db.unique/identity}})
+
 ;; This is what defines our API in it's entirety. All users of this library
 ;; need to do is 
 (r/defresource Tweet
-  {:schema {:id Int
-            :body Str
-            :author {:name Str}}
-   :uniqueness {:id :db.unique/identity}})
+  {:schema {:tweet/id Int
+            :body Str}
+   :uniqueness {:tweet/id :db.unique/identity}})
 
 (def TestTweets
-  [{:id 1, :body "first post",
-    :author {:name "cddr"}}
-   {:id 2, :body "witty remark",
-    :author {:name "cddr"}}
-   {:id 3, :body "witty remark",
-    :author {:name "copy cat"}}])
+  [{:tweet/id 1, :body "first post"}
+   {:tweet/id 2, :body "witty remark"}])
 
-(defn dbg-handler [handler]
+(defn dbg-handler [handler msg]
   (fn [req]
-    (prn "req: " req)
+    (prn "req: " msg req)
     (let [resp (handler req)]
       (prn "resp: " resp)
       resp)))
-
-(defn make-test-api [resources]
-  (fn [cx]
-    (fn test-api
-      ([method path params]
-         (test-api method path params {}))
-      ([method path params body]
-         (let [app (-> (apply c/routes (for [r resources]
-                                         (c/context (path-prefix r) []
-                                           (r/api-routes cx r))))
-                       (wrap-defaults api-defaults)
-                       (wrap-json-body {:keywords? true})
-                       wrap-json-response)
-               parse-response (fn [response]
-                                (assoc response :body (parse-string (:body response) true)))]
-           (-> (ring.mock.request/request method path params)
-               (ring.mock.request/content-type "application/json")
-               (ring.mock.request/body (generate-string body))
-               app
-               parse-response))))))
 
 (def test-uri "datomic:mem://test-db")
 
@@ -67,47 +48,61 @@ HTTP method, that does corresponding thing on an underlying datomic database."
 (defn test-teardown []
   (d/delete-database test-uri))
 
-(defn api-testing [test-env test-fn]
-  (let [{:keys [resource test-data]} test-env
-        {:keys [schema uniqueness name]} resource
+(defn mock-api [cx resources & request-args]
+  (let [app (-> (apply c/routes (for [r resources]
+                                  (c/context (path-prefix r) []
+                                    (r/api-routes cx r))))
+                (wrap-restful-format :formats [:edn :json])
+                (wrap-defaults api-defaults))
+        parse-response (fn [response]
+                         (assoc response :body (clojure.edn/read-string (slurp (:body response)))))]
+    (let [[method path params body] request-args]
+      (-> (ring.mock.request/request method path params)
+          (ring.mock.request/content-type "application/edn")
+          (ring.mock.request/body (str (or body {})))
+          app
+          parse-response))))
+
+(defn mock-api-for [test-env]
+  (let [{:keys [resources test-data]} test-env
+        keep-one-ident (fn [acc next]
+                         (if (some #(= (:db/ident %)
+                                       (:db/ident next)) acc)
+                           acc
+                           (conj acc next)))
         tx (fn [cx tx-data]
              @(d/transact cx tx-data)
              cx)
-        api (make-test-api [resource])]
-    (let [test-result (test-fn (-> (test-setup)
-                                   (tx (db/attributes schema uniqueness))
-                                   (tx (r/datomic-facts test-data))
-                                   api))]
-      (test-teardown)
-      test-result)))
-
+        meta (reduce keep-one-ident [] (into [] (mapcat db/attributes (map :schema resources)
+                                                     (map :uniqueness resources))))
+        data (r/datomic-facts test-data)]
+    (partial mock-api (-> (test-setup) (tx meta) (tx data)) resources)))
 
 (deftest test-api-get
-  (api-testing {:resource Tweet
-                :test-data TestTweets}
-    (fn [api]
-      (let [response (api :get "/tweet" {:id "999"})]
-        (is (= 404          (-> response :status)))
-        (is (= "Failed to find Tweet with query: {:id \"999\"}"
-                            (-> response :body :error))))
+  (let [api (mock-api-for {:resources [User Tweet]
+                           :test-data TestTweets})]
+    (let [response (api :get "/tweet" {"tweet/id" 99})]
+      (is (= 404          (-> response :status)))
+      (is (= "Failed to find Tweet with query: {\"tweet/id\" \"99\"}"
+             (-> response :body :error))))
 
-      (let [response (api :get "/tweet" {:id "1"})]
-        (is (= 200          (-> response :status)))
-        (is (= 1            (-> response :body :id)))
-        (is (= "first post" (-> response :body :body)))
-        (is (= "cddr"       (-> response :body :author :name))))
-
-      (let [response (api :get "/tweet" {:body "witty remark"})]
-        (is (= 200 (:status response)))
-        (is (= 2              (-> response :body :id)))
-        (is (= "witty remark" (-> response :body :body)))))))
+    (let [response (api :get "/tweet" {"tweet/id" "1"})]
+      (is (= 200          (-> response :status)))
+      (is (= 1            (-> response :body :tweet/id)))
+  
+      (is (= "first post" (-> response :body :body)))
+;      (is (= "cddr"       (-> response :body :author :name))))
+      )
+    (let [response (api :get "/tweet" {:body "witty remark"})]
+      (is (= 200 (:status response)))
+      (is (= 2              (-> response :body :tweet/id)))
+      (is (= "witty remark" (-> response :body :body))))))
 
 (deftest test-api-post
-  (api-testing {:resource Tweet
-                :test-data TestTweets}
-    (fn [api]
-      (let [response (api :post "/tweet" {} {:id 4, :body "test post", :author {:name "cddr"}})]
-        (is (= 202 (-> response :status)))
-        (is (= {} (-> response :body)))))))
+  (let [api (mock-api-for {:resources [User Tweet]
+                           :test-data TestTweets})]
+    (let [response (api :post "/tweet" {} {:tweet/id 4, :body "test post"})]
+      (is (= 202 (-> response :status)))
+      (is (= {} (-> response :body))))))
 
 

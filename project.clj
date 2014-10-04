@@ -7,7 +7,7 @@
                  [com.datomic/datomic-free "0.9.4899"]
 
                  [cddr/integrity "0.3.1-SNAPSHOT"]
-                 [ring/ring-json "0.3.1"]
+                 [ring-middleware-format "0.4.0"]
                  [ring/ring-defaults "0.1.2"]
                  [compojure "1.1.9"]
 

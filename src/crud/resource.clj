@@ -104,18 +104,30 @@ the current key"
                       (:tempids tx)
                       root-id)))
 
+(defn keywordize
+  "Recursively convert maps in m (including itself)
+   to have keyword keys instead of string"
+  [x]
+  (cond
+   (map? x) (map (fn [[k v]]
+                   [(if (string? k) (keyword k) k) (keywordize v)])
+                 (seq x))
+   (seq? x) (map keywordize x)
+   (vector? x) (mapv keywordize x)
+   :else x))
+
 (defn api-routes [c resource]
   (let [schema (:schema resource)]
     (http/routes
      (http/GET   "/" request (if-let [e (-> (:params request)
+                                            clojure.walk/keywordize-keys
                                             (parse-with (optionalize schema))
                                             (find-entity (d/db c)))]
                                (resp/response (as-tree e resource))
                                (resp/not-found {:error (str "Failed to find " (:name resource)
                                                             " with query: " (:params request))})))
 
-     (http/POST  "/" request (let [body (:body request)
-                                   params (parse-with body schema)]
+     (http/POST  "/" request (let [params (parse-with (:body-params request) schema)]
                                (apply-tx c (d/tempid :db.part/user) params)
                                {:status 202
                                 :body {}}))
