@@ -38,14 +38,15 @@ HTTP method, that does corresponding thing on an underlying datomic database."
       (prn "resp: " resp)
       resp)))
 
-(defn make-test-api [resource]
+(defn make-test-api [resources]
   (fn [cx]
     (fn test-api
       ([method path params]
          (test-api method path params {}))
       ([method path params body]
-         (let [app (-> (c/context (path-prefix resource) []
-                         (r/api-routes cx resource))
+         (let [app (-> (apply c/routes (for [r resources]
+                                         (c/context (path-prefix r) []
+                                           (r/api-routes cx r))))
                        (wrap-defaults api-defaults)
                        (wrap-json-body {:keywords? true})
                        wrap-json-response)
@@ -72,7 +73,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
         tx (fn [cx tx-data]
              @(d/transact cx tx-data)
              cx)
-        api (make-test-api resource)]
+        api (make-test-api [resource])]
     (let [test-result (test-fn (-> (test-setup)
                                    (tx (db/attributes schema uniqueness))
                                    (tx (r/datomic-facts test-data))
