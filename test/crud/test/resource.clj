@@ -7,10 +7,13 @@ HTTP method, that does corresponding thing on an underlying datomic database."
             [datomic.api :as d]
             [integrity.datomic :as db]
             [crud.resource :as r]
+            [compojure.core :as c]
             [ring.mock.request :as client]
             [ring.middleware.defaults :refer :all]
             [ring.middleware.json :refer [wrap-json-body wrap-json-response]]
             [cheshire.core :refer [parse-string generate-string]]))
+
+(defn path-prefix [resource] (str "/" (clojure.string/lower-case (:name resource))))
 
 ;; This is what defines our API in it's entirety. All users of this library
 ;; need to do is 
@@ -38,16 +41,17 @@ HTTP method, that does corresponding thing on an underlying datomic database."
 (defn make-test-api [resource]
   (fn [cx]
     (fn test-api
-      ([method params]
-         (test-api method params {}))
-      ([method params body]
-         (let [app (-> (r/api-routes cx resource)
+      ([method path params]
+         (test-api method path params {}))
+      ([method path params body]
+         (let [app (-> (c/context (path-prefix resource) []
+                         (r/api-routes cx resource))
                        (wrap-defaults api-defaults)
                        (wrap-json-body {:keywords? true})
                        wrap-json-response)
                parse-response (fn [response]
                                 (assoc response :body (parse-string (:body response) true)))]
-           (-> (ring.mock.request/request method "/" params)
+           (-> (ring.mock.request/request method path params)
                (ring.mock.request/content-type "application/json")
                (ring.mock.request/body (generate-string body))
                app
@@ -81,18 +85,18 @@ HTTP method, that does corresponding thing on an underlying datomic database."
   (api-testing {:resource Tweet
                 :test-data TestTweets}
     (fn [api]
-      (let [response (api :get {:id "999"})]
+      (let [response (api :get "/tweet" {:id "999"})]
         (is (= 404          (-> response :status)))
         (is (= "Failed to find Tweet with query: {:id \"999\"}"
                             (-> response :body :error))))
 
-      (let [response (api :get {:id "1"})]
+      (let [response (api :get "/tweet" {:id "1"})]
         (is (= 200          (-> response :status)))
         (is (= 1            (-> response :body :id)))
         (is (= "first post" (-> response :body :body)))
         (is (= "cddr"       (-> response :body :author :name))))
 
-      (let [response (api :get {:body "witty remark"})]
+      (let [response (api :get "/tweet" {:body "witty remark"})]
         (is (= 200 (:status response)))
         (is (= 2              (-> response :body :id)))
         (is (= "witty remark" (-> response :body :body)))))))
@@ -101,7 +105,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
   (api-testing {:resource Tweet
                 :test-data TestTweets}
     (fn [api]
-      (let [response (api :post {} {:id 4, :body "test post", :author {:name "cddr"}})]
+      (let [response (api :post "/tweet" {} {:id 4, :body "test post", :author {:name "cddr"}})]
         (is (= 202 (-> response :status)))
         (is (= {} (-> response :body)))))))
 
