@@ -118,15 +118,18 @@ the current key"
 (defn api-routes [c resource]
   (let [schema (:schema resource)]
     (http/routes
-     (http/GET   "/" request (if-let [e (-> (:params request)
-                                            clojure.walk/keywordize-keys
-                                            (parse-with (optionalize schema))
-                                            (find-entity (d/db c)))]
-                               (cond
-                                (< 1 (count e)) (resp/response (into [] (map #(as-tree % resource) e)))
-                                (= 1 (count e)) (resp/response (as-tree (first e) resource))
-                                :else (resp/not-found {:error (str "Failed to find " (:name resource)
-                                                                   " with query: " (:params request))}))))
+     (http/GET   "/" request (let [params (-> (:params request)
+                                              clojure.walk/keywordize-keys
+                                              (parse-with (optionalize schema)))]
+                               (if (schema.utils/error? params)
+                                 {:status 422
+                                  :body {:error (schema.utils/error-val params)}}
+                                 (if-let [e (find-entity params (d/db c))]
+                                   (cond
+                                    (< 1 (count e)) (resp/response (into [] (map #(as-tree % resource) e)))
+                                    (= 1 (count e)) (resp/response (as-tree (first e) resource))
+                                    :else (resp/not-found {:error (str "Failed to find " (:name resource)
+                                                                       " with query: " (:params request))}))))))
 
      (http/POST  "/" request (let [params (parse-with (:body-params request) schema)]
                                (apply-tx c (d/tempid :db.part/user) params)

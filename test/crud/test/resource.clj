@@ -33,36 +33,41 @@ HTTP method, that does corresponding thing on an underlying datomic database."
                  {:tweet/id 2, :body "witty remark", :author 1}
                  {:tweet/id 3, :body "snarky joke", :author 1}])
 
-
 (deftest test-api-get
   (let [api (mock-api-for {:resources [User Tweet]
-                           :test-data TestTweets})]
-    (let [expected-error "Failed to find Tweet with query: {\"tweet/id\" \"99\"}"
-          response (api :get "/tweet" {"tweet/id" 99})]
-      (is (= 404            (-> response :status)))
-      (is (= expected-error (-> response :body :error))))
+                           :test-data TestTweets})
+        tweet-not-found {:status 404
+                         :body {:error (str "Failed to find Tweet with query: " {"tweet/id" "99"})}}]
+    (testing "nonsensical requests"
+      (is (= 404 (-> (api :get "/tweet/nonsense") :status)))
+      (is (= 422 (-> (api :get "/tweet" {:bad "params"}) :status))))
 
-    (let [response (api :get "/tweet" {"tweet/id" "1"})]
-      (is (= 200            (-> response :status)))
-      (is (= 1              (-> response :body :tweet/id)))
-  
-      (is (= "first post"   (-> response :body :body)))
-      (is (= 2              (-> response :body :author))))
+    (testing "sane requests"
+      (testing "not found"
+        (is (submap? tweet-not-found (api :get "/tweet" {"tweet/id" 99}))))
 
-    (let [response (api :get "/tweet" {:body "witty remark"})]
-      (is (= 200            (:status response)))
-      (is (= 2              (-> response :body :tweet/id)))
-      (is (= "witty remark" (-> response :body :body)))
-      (is (= 1              (-> response :body :author))))))
+      (testing "find by id"
+        (is (submap? {:status 200
+                      :body {:tweet/id 1
+                             :resource "Tweet"
+                             :body "first post"
+                             :author 2}}
+                     (api :get "/tweet" {"tweet/id" "1"})) "find by id"))
 
-(deftest test-get-many
-  (let [api (mock-api-for {:resources [User Tweet]
-                           :test-data TestTweets})]
-    (let [response (api :get "/tweet" {:author 1})]
-      (is (= 200            (-> response :status)))
-      (is (= 2              (count (-> response :body))))
-      (is (= '(1 1)         (map :author (-> response :body))))
-      (is (= '(2 3)         (sort (map :tweet/id (-> response :body))))))))
+      (testing "find by body"
+        (is (submap? {:status 200
+                      :body {:tweet/id 2
+                             :resource "Tweet"
+                             :body "witty remark"
+                             :author 1}}
+                     (api :get "/tweet" {:body "witty remark"}))))
+
+      (testing "find many"
+        (let [response (api :get "/tweet" {:author 1})]
+          (is (= 200            (-> response :status)))
+          (is (= 2              (count (-> response :body))))
+          (is (= '(1 1)         (map :author (-> response :body))))
+          (is (= '(2 3)         (sort (map :tweet/id (-> response :body))))))))))
 
 (deftest test-api-post
   (let [api (mock-api-for {:resources [User Tweet]

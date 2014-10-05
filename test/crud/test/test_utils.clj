@@ -1,6 +1,8 @@
 (in-ns 'crud.test.resource)
 
 (defn path-prefix [resource] (str "/" (clojure.string/lower-case (:name resource))))
+(defn submap? [a b]
+  (clojure.set/subset? (set a) (set b)))
 
 (defn dbg-handler [handler msg]
   (fn [req]
@@ -12,6 +14,7 @@
 (def test-uri "datomic:mem://test-db")
 
 (defn test-setup []
+  (d/delete-database test-uri)
   (d/create-database test-uri)
   (d/connect test-uri))
 
