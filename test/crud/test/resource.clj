@@ -10,8 +10,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
             [compojure.core :as c]
             [ring.mock.request :as client]
             [ring.middleware.defaults :refer :all]
-            [ring.middleware.format :refer [wrap-restful-format]]
-            [cheshire.core :refer [parse-string generate-string]]))
+            [ring.middleware.format :refer [wrap-restful-format]]))
 
 (load "test_utils")
 
@@ -21,20 +20,18 @@ HTTP method, that does corresponding thing on an underlying datomic database."
             :name Str}
    :uniqueness {:user/id :db.unique/identity}})
 
-(def TestUsers
-  [{:user/id 1, :email "torvalds@example.com", :name "Linus Torvalds"}
-   {:user/id 2, :email "bill@example.com", :name "Bill Gates"}])
+(def TestUsers [{:user/id 1, :email "torvalds@example.com", :name "Linus Torvalds"}
+                {:user/id 2, :email "bill@example.com", :name "Bill Gates"}])
 
 (r/defresource Tweet
   {:schema {:tweet/id Int
             :body Str
-            :author Int}
+            :author (:user/id (:schema User))}
    :uniqueness {:tweet/id :db.unique/identity}})
 
-(def TestTweets
-  [{:tweet/id 1, :body "first post", :author 2}
-   {:tweet/id 2, :body "witty remark", :author 1}
-   {:tweet/id 3, :body "snarky joke", :author 1}])
+(def TestTweets [{:tweet/id 1, :body "first post", :author 2}
+                 {:tweet/id 2, :body "witty remark", :author 1}
+                 {:tweet/id 3, :body "snarky joke", :author 1}])
 
 
 (deftest test-api-get
