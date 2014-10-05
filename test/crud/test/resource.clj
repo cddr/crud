@@ -21,16 +21,20 @@ HTTP method, that does corresponding thing on an underlying datomic database."
             :name Str}
    :uniqueness {:user/id :db.unique/identity}})
 
-;; This is what defines our API in it's entirety. All users of this library
-;; need to do is 
+(def TestUsers
+  [{:user/id 1, :email "torvalds@example.com", :name "Linus Torvalds"}
+   {:user/id 2, :email "bill@example.com", :name "Bill Gates"}])
+
 (r/defresource Tweet
   {:schema {:tweet/id Int
-            :body Str}
+            :body Str
+            :author Int}
    :uniqueness {:tweet/id :db.unique/identity}})
 
 (def TestTweets
-  [{:tweet/id 1, :body "first post"}
-   {:tweet/id 2, :body "witty remark"}])
+  [{:tweet/id 1, :body "first post", :author 2}
+   {:tweet/id 2, :body "witty remark", :author 1}
+   {:tweet/id 3, :body "snarky joke", :author 1}])
 
 (defn dbg-handler [handler msg]
   (fn [req]
@@ -91,18 +95,31 @@ HTTP method, that does corresponding thing on an underlying datomic database."
       (is (= 1            (-> response :body :tweet/id)))
   
       (is (= "first post" (-> response :body :body)))
-;      (is (= "cddr"       (-> response :body :author :name))))
-      )
+      (is (= 2            (-> response :body :author))))
+
     (let [response (api :get "/tweet" {:body "witty remark"})]
       (is (= 200 (:status response)))
       (is (= 2              (-> response :body :tweet/id)))
-      (is (= "witty remark" (-> response :body :body))))))
+      (is (= "witty remark" (-> response :body :body)))
+      (is (= 1              (-> response :body :author))))))
+
+(deftest test-get-many
+  (let [api (mock-api-for {:resources [User Tweet]
+                           :test-data TestTweets})]
+    (let [response (api :get "/tweet" {:author 1})]
+      (is (= 200 (-> response :status)))
+      (is (= 2 (count (-> response :body))))
+      (is (= '(1 1) (map :author (-> response :body))))
+      (is (= '(2 3) (sort (map :tweet/id (-> response :body))))))))
 
 (deftest test-api-post
   (let [api (mock-api-for {:resources [User Tweet]
                            :test-data TestTweets})]
-    (let [response (api :post "/tweet" {} {:tweet/id 4, :body "test post"})]
+    (let [response (api :post "/tweet" {} {:tweet/id 4, :body "test post" :author 1})]
       (is (= 202 (-> response :status)))
-      (is (= {} (-> response :body))))))
+      (is (= {} (-> response :body))))
+
+    (let [response (api :get "/tweet" {"tweet/id" 4})]
+      (is (= 200 (-> response :status))))))
 
 

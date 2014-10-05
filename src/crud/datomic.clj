@@ -3,11 +3,6 @@
 (defn datomic-schema [resource]
   (let [{:keys [refs uniqueness schema]} resource]
     (letfn [(generate-ref [k v]
-              (if-let [u (k uniqueness)]
-                (do
-                  (prn "uniqueness: " u)
-                  (if-not (some #{u} [:db.unique/identity :db.unique/value])
-                    (throw (new java.lang.Exception (str "invalid uniqueness:" u)))))) 
               (merge (dat/attribute k v (k uniqueness))
                      {:db/valueType :db.type/ref}))
             

@@ -70,8 +70,7 @@ the current key"
         q {:find '[?e]
            :in '[$]
            :where (map build-predicate params)}]
-    (d/entity db (ffirst (d/q q db)))))
-
+    (map (partial d/entity db) (apply concat (d/q q db)))))
 
 (defn render-error [params resource]
   (str "Failed to find " (:name resource) " with query: " params))
@@ -123,9 +122,11 @@ the current key"
                                             clojure.walk/keywordize-keys
                                             (parse-with (optionalize schema))
                                             (find-entity (d/db c)))]
-                               (resp/response (as-tree e resource))
-                               (resp/not-found {:error (str "Failed to find " (:name resource)
-                                                            " with query: " (:params request))})))
+                               (cond
+                                (< 1 (count e)) (resp/response (into [] (map #(as-tree % resource) e)))
+                                (= 1 (count e)) (resp/response (as-tree (first e) resource))
+                                :else (resp/not-found {:error (str "Failed to find " (:name resource)
+                                                                   " with query: " (:params request))}))))
 
      (http/POST  "/" request (let [params (parse-with (:body-params request) schema)]
                                (apply-tx c (d/tempid :db.part/user) params)
