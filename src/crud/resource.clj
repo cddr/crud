@@ -38,12 +38,7 @@ and vice versa"
                                (walk-entity (schema-name entity) schema-type))))
                     {}
                     schema))]
-    (let [tree (walk-entity entity (seq (:schema resource)))]
-      (apply array-map
-             (apply concat
-                    (concat (select-keys tree [:id])
-                            {:resource (:name resource)}
-                            (dissoc tree [:id])))))))
+    (walk-entity entity (seq (:schema resource)))))
 
 (defn datomic-facts
   ([tmp-id object]
