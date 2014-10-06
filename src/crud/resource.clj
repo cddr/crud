@@ -9,6 +9,8 @@ and vice versa"
             [compojure.route :as route]
             [ring.util.response :as resp]))
 
+(load "query")
+
 (defrecord Resource [name schema uniqueness])
 
 (defmacro defresource [name body]
@@ -118,6 +120,9 @@ the current key"
 (defn api-routes [c resource]
   (let [schema (:schema resource)]
     (http/routes
+     (http/GET   "/:id" [id] (if-let [e (find-by (d/db c) :id (clojure.edn/read-string id))]
+                               (resp/response (as-tree e resource))
+                               (resp/not-found {:error (str "Failed to find " (:name resource) " with id: " id)})))
      (http/GET   "/" request (let [params (-> (:params request)
                                               clojure.walk/keywordize-keys
                                               (parse-with (optionalize schema)))]
