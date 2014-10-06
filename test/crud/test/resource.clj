@@ -39,9 +39,19 @@ HTTP method, that does corresponding thing on an underlying datomic database."
 
 (deftest test-post
   (let [api (mock-api-for {:resources [Tweet]})]
-    (let [response (api :post "/tweet" {} {:id 4, :body "test post" :author 1})]
+    (let [response (api :post "/tweet" {} {:body "test post" :author 1})]
       (is (= 202            (-> response :status)))
       (is (= {}             (-> response :body))))))
+
+(deftest test-patch
+  (let [api (mock-api-for {:resources [Tweet]})]
+    (let [response (api :post "/tweet" {} {:body "crappy tweet", :author 1})
+          posted-uri (get-in response [:headers "Location"])]
+      (api :patch posted-uri {} {:body "better tweet"})
+
+      (is (submap? {:body "better tweet"
+                    :author 1}
+                   (:body (api :get posted-uri)))))))
 
 (deftest test-find-by-id
   (let [api (mock-api-for {:resources [Tweet]})]

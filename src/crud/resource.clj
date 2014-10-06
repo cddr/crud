@@ -112,12 +112,45 @@ the current key"
    (vector? x) (mapv keywordize x)
    :else x))
 
+(def next-id (let [i (atom 0)]
+               (fn []
+                 (swap! i inc)
+                 @i)))
+
+(defn wrap-with-id [params]
+  (if-not (:id params)
+    (assoc params
+      :id (next-id))
+    params))
+
+(defn uri-for [resource id]
+  (format "/%s/%s"
+          (clojure.string/lower-case (:name resource))
+          id))
+
 (defn api-routes [c resource]
   (let [schema (:schema resource)]
     (http/routes
-     (http/GET   "/:id" [id] (if-let [e (find-by (d/db c) :id (clojure.edn/read-string id))]
-                               (resp/response (as-tree e resource))
-                               (resp/not-found {:error (str "Failed to find " (:name resource) " with id: " id)})))
+     (http/POST  "/" request (let [params (-> (:body-params request)
+                                              wrap-with-id
+                                              (parse-with schema))]
+                               (prn "params: " params)
+                               (apply-tx c (d/tempid :db.part/user) params)
+                               {:status 202
+                                :headers {"Location" (uri-for resource (:id params))}
+                                :body {}}))
+
+     (http/GET   "/:id" [id]
+       (if-let [e (find-by (d/db c) :id (clojure.edn/read-string id))]
+         (resp/response (as-tree e resource))
+         (resp/not-found {:error (str "Failed to find " (:name resource) " with id: " id)})))
+
+     (http/PATCH "/:id" [id :as request]
+                 (if-let [e (find-by (d/db c) :id (clojure.edn/read-string id))]
+                   (let [params (parse-with (:body-params request) (optionalize schema))]
+                     (apply-tx c (:db/id e) params)
+                     {:status 202, :body {}})))
+                               
      (http/GET   "/" request (let [params (-> (:params request)
                                               clojure.walk/keywordize-keys
                                               (parse-with (optionalize schema)))]
@@ -131,10 +164,6 @@ the current key"
                                     :else (resp/not-found {:error (str "Failed to find " (:name resource)
                                                                        " with query: " (:params request))}))))))
 
-     (http/POST  "/" request (let [params (parse-with (:body-params request) schema)]
-                               (apply-tx c (d/tempid :db.part/user) params)
-                               {:status 202
-                                :body {}}))
 
      (route/not-found {:body {:error "Endpoint not found"}}))))
      
