@@ -11,7 +11,7 @@
 
             (reducer [acc [k v]]
               (cond
-               (some #{k} (:refs resource))
+               (contains? (:refs resource) k)
                (into acc [(generate-ref k v)])
 
                (extends? schema.core/Schema (class v))

@@ -9,6 +9,7 @@ and vice versa"
             [compojure.route :as route]
             [ring.util.response :as resp]))
 
+(load "datomic")
 (load "query")
 
 (defrecord Resource [name schema uniqueness])
@@ -18,11 +19,11 @@ and vice versa"
      (map->Resource (merge {:name (name '~name)}
                            ~body))))
 
-(defn- parse-with [params schema]
+(defn parse-with [params schema]
   (let [parser (coercer schema string-coercion-matcher)]
     (parser params)))
 
-(defn- optionalize [schema]
+(defn optionalize [schema]
   "TODO: consider optionalizing recursively"
   (into {} (map (fn [[name type]]
                   [(s/optional-key name) type])
@@ -33,7 +34,9 @@ and vice versa"
   (letfn [(walk-entity [entity schema]
             (reduce (fn [m [schema-name schema-type]]
                       (if (extends? schema.core/Schema (class schema-type))
-                        (assoc m schema-name (schema-name entity))
+                        (assoc m schema-name (if-let [externalize (get (:refs resource) schema-name)]
+                                               (externalize (schema-name entity))
+                                               (schema-name entity)))
                         (assoc m schema-name
                                (walk-entity (schema-name entity) schema-type))))
                     {}
@@ -94,11 +97,11 @@ the current key"
                 (post-tx (d/tempid :db.part/user) req))))
 
 (defn apply-tx [c root-id params]
-  (let [tx-data (datomic-facts root-id params)
-        tx @(d/transact c tx-data)]
-    (d/resolve-tempid (:db-after tx)
-                      (:tempids tx)
-                      root-id)))
+  (let [tx-data (datomic-facts root-id params)]
+    (let [tx @(d/transact c tx-data)]
+      (d/resolve-tempid (:db-after tx)
+                        (:tempids tx)
+                        root-id))))
 
 (defn keywordize
   "Recursively convert maps in m (including itself)
@@ -123,6 +126,18 @@ the current key"
       :id (next-id))
     params))
 
+(defn lookup [attr] (fn [x]
+                      (if (instance? datomic.Entity x)
+                        (attr x)
+                        [attr x])))
+
+(defn wrap-with-lookup-refs [params resource]
+  (let [reducer (fn [m [k v]]
+                  (if-let [internalize (get (:refs resource) k)]
+                    (assoc m k (internalize v))
+                    (assoc m k v)))]
+    (reduce reducer {} params)))
+
 (defn uri-for [resource id]
   (format "/%s/%s"
           (clojure.string/lower-case (:name resource))
@@ -133,8 +148,8 @@ the current key"
     (http/routes
      (http/POST  "/" request (let [params (-> (:body-params request)
                                               wrap-with-id
-                                              (parse-with schema))]
-                               (prn "params: " params)
+                                              (parse-with schema)
+                                              (wrap-with-lookup-refs resource))]
                                (apply-tx c (d/tempid :db.part/user) params)
                                {:status 202
                                 :headers {"Location" (uri-for resource (:id params))}
@@ -157,7 +172,7 @@ the current key"
                                (if (schema.utils/error? params)
                                  {:status 422
                                   :body {:error (schema.utils/error-val params)}}
-                                 (if-let [e (find-entity params (d/db c))]
+                                 (if-let [e (find-entity (wrap-with-lookup-refs params resource) (d/db c))]
                                    (cond
                                     (< 1 (count e)) (resp/response (into [] (map #(as-tree % resource) e)))
                                     (= 1 (count e)) (resp/response (as-tree (first e) resource))

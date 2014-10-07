@@ -105,4 +105,4 @@ general camps (I'd love to hear if there's more you know of).
 
 ## License
 
-Copyright © 2014 FIXME
+Copyright © 2014 Andy Chambers

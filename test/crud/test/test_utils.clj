@@ -46,8 +46,7 @@
         tx (fn [cx tx-data]
              @(d/transact cx tx-data)
              cx)
-        meta (reduce keep-one-ident [] (into [] (mapcat db/attributes (map :schema resources)
-                                                     (map :uniqueness resources))))
+        meta (reduce keep-one-ident [] (into [] (mapcat r/datomic-schema resources)))
         data (r/datomic-facts test-data)]
     (partial mock-api (-> (test-setup) (tx meta) (tx data)) resources)))
 

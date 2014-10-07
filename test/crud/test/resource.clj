@@ -24,7 +24,8 @@ HTTP method, that does corresponding thing on an underlying datomic database."
   {:schema {:id Int
             :body Str
             :author (:id (:schema User))}
-   :uniqueness {:id :db.unique/identity}})
+   :uniqueness {:id :db.unique/identity}
+   :refs {:author (r/lookup :id)}})
 
 (deftest test-garbage-requests
   (let [api (mock-api-for {:resources [Tweet]})]
@@ -38,13 +39,15 @@ HTTP method, that does corresponding thing on an underlying datomic database."
                  (api :get "/tweet/99")))))
 
 (deftest test-post
-  (let [api (mock-api-for {:resources [Tweet]})]
+  (let [api (mock-api-for {:resources [Tweet User]})]
+    (api :post "/user" {} {:id 1, :email "torvalds@linux.com", :name "Linus"}) 
     (let [response (api :post "/tweet" {} {:body "test post" :author 1})]
       (is (= 202            (-> response :status)))
       (is (= {}             (-> response :body))))))
 
 (deftest test-patch
-  (let [api (mock-api-for {:resources [Tweet]})]
+  (let [api (mock-api-for {:resources [Tweet User]})]
+    (api :post "/user" {} {:id 1, :email "torvalds@linux.com", :name "Linus"})
     (let [response (api :post "/tweet" {} {:body "crappy tweet", :author 1})
           posted-uri (get-in response [:headers "Location"])]
       (api :patch posted-uri {} {:body "better tweet"})
@@ -54,7 +57,8 @@ HTTP method, that does corresponding thing on an underlying datomic database."
                    (:body (api :get posted-uri)))))))
 
 (deftest test-find-by-id
-  (let [api (mock-api-for {:resources [Tweet]})]
+  (let [api (mock-api-for {:resources [Tweet User]})]
+    (api :post "/user" {} {:id 1, :email "torvalds@linux.com", :name "Linus"})    
     (api :post "/tweet" {} {:id 101, :author 1, :body "hello world!"})
 
     (is (submap? {:status 200
@@ -64,7 +68,8 @@ HTTP method, that does corresponding thing on an underlying datomic database."
                  (api :get "/tweet/101")))))
 
 (deftest test-find-by-attr
-  (let [api (mock-api-for {:resources [Tweet]})]
+  (let [api (mock-api-for {:resources [Tweet User]})]
+    (api :post "/user" {} {:id 1, :email "torvalds@linux.com", :name "Linus"})    
     (api :post "/tweet" {} {:id 101, :author 1, :body "hello world!"})
 
     (is (submap? {:status 200
@@ -74,7 +79,8 @@ HTTP method, that does corresponding thing on an underlying datomic database."
                  (api :get "/tweet" {:body "hello world!"})))))
 
 (deftest test-find-many
-  (let [api (mock-api-for {:resources [Tweet]})]
+  (let [api (mock-api-for {:resources [Tweet User]})]
+    (api :post "/user" {} {:id 1, :email "torvalds@linux.com", :name "Linus"})    
     (api :post "/tweet" {} {:id 101, :author 1, :body "hello world!"})
     (api :post "/tweet" {} {:id 102, :author 1, :body "writing an OS, brb"})
 
