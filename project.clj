@@ -10,11 +10,14 @@
                  [ring-middleware-format "0.4.0"]
                  [ring/ring-defaults "0.1.2"]
                  [compojure "1.1.9"]
+                 [liberator "0.12.2"]
+                 [org.clojure/test.check "0.5.9"]
 
                  [prismatic/schema "0.2.6"]
                  [clj-time "0.8.0"]
                  [cheshire "5.3.1"]]
-  :plugins [[lein-ring "0.8.12"]]
+  :plugins [[lein-ring "0.8.12"]
+            [lein-marginalia "0.8.1"]]
   :ring {:handler crud.handler/app}
   :profiles
   {:dev {:dependencies [[javax.servlet/servlet-api "2.5"]
