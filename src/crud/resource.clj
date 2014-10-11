@@ -16,25 +16,6 @@ and vice versa"
 (load "helpers")
 (load "protocol")
 
-;; (defn internalize-with [refs input-path]
-;;   (fn [ctx]
-;;     (let [reducer (fn [m [k v]]
-;;                     (if-let [internalize (get refs k)]
-;;                       (assoc m k (internalize v))
-;;                       (assoc m k v)))]
-;;       (assoc ctx
-;;         ::internalized-input (reduce reducer {} (get-in ctx input-path))))))
-
-;; (defn entity-uri-of [attr]
-;;   (fn [e]
-    
-
-;; (defn externalize-with [refs output-path]
-;;   (fn [ctx]
-;;     (let [reducer (fn ex [m [k v]]
-;;                     (if-let [externalize (get refs k)]
-                      
-
 ;; (defn api-routes [cnx & definition]
 ;;   (let [{:keys [name schema uniqueness refs]} definition
 ;;         with-overrides (fn [& b] (merge (apply hash-map b) definition))]

@@ -1,9 +1,14 @@
 (in-ns 'crud.test.resource)
 
-(defn path-prefix [resource] (str "/" (clojure.string/lower-case (:name resource))))
-(defn submap? [a b] (clojure.set/subset? (set a) (set b)))
-(defn test-ids [n]
-  (repeatedly n (partial d/tempid :db.part/user)))
+(defn path-prefix [resource] (str "/" (-> resource :name clojure.string/lower-case)))
+(defn submap?     [a b]      (clojure.set/subset? (set a) (set b)))
+(defn test-ids    [n]        (repeatedly n (partial d/tempid :db.part/user)))
+
+(defn keep-one-ident [acc next]
+  (if (some #(= (:db/ident %)
+                (:db/ident next)) acc)
+    acc
+    (conj acc next)))
 
 (defn dbg-handler [handler msg]
   (fn [req]
@@ -51,11 +56,6 @@
 
 (defn test-connection [test-env]
   (let [{:keys [resources test-data]} test-env
-        keep-one-ident (fn [acc next]
-                         (if (some #(= (:db/ident %)
-                                       (:db/ident next)) acc)
-                           acc
-                           (conj acc next)))
         tx (fn [cx tx-data]
              @(d/transact cx tx-data)
              cx)
@@ -69,18 +69,11 @@
 
 (defn test-db [test-env]
   (let [{:keys [resources test-data]} test-env
-        keep-one-ident (fn [acc next]
-                         (if (some #(= (:db/ident %)
-                                       (:db/ident next)) acc)
-                           acc
-                           (conj acc next)))
-        tx (fn [cx tx-data]
-             @(d/transact cx tx-data)
-             cx)
-        meta (reduce keep-one-ident [] (into [] (mapcat r/datomic-schema
-                                                        (map :schema resources)
-                                                        (map :uniqueness resources)
-                                                        (map :refs resources))))]
+        tx (fn [cx tx-data] @(d/transact cx tx-data) cx)
+        meta (reduce keep-one-ident [] (vec (mapcat r/datomic-schema
+                                                    (map :schema resources)
+                                                    (map :uniqueness resources)
+                                                    (map :refs resources))))]
     (let [c (test-setup)]
       (tx c meta)
       (tx c test-data)
