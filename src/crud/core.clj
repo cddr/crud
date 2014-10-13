@@ -41,11 +41,6 @@ via the :as-response key of the corresponding ref"
                     schema))]
     (walk-entity entity (seq schema))))
 
-;; (defrecord DatomicRepresentation [schema refs]
-;;   liberator.representation/Representation
-;;   (liberator.representation/as-response [this context]
-;;     (as-response (::entity context) schema refs)))
-
 (defn as-facts
   ([tmp-id object refs]
      "Generates datomic facts by recursively walking the specified map converting
@@ -210,7 +205,7 @@ the current context"
   (fn [ctx]
     (if-let [entity (find-by db :id id)]
       [true (assoc-in ctx path entity)]
-      false)))
+      [false (assoc-in ctx [::parsed-input :id] id)])))
 
 (defn creator! [c data-path refs]
   (fn [ctx]
@@ -289,20 +284,30 @@ the current context"
                                :allowed-methods       [:get :patch :put :delete]
                                :available-media-types ["application/edn"]
                                :known-content-type?   known-content-type?
+                               :malformed?            (malformed? [:request :body] [::parsed-input])
+                               :processable?          (comp (validator schema
+                                                                       [::parsed-input]
+                                                                       [::valid-parsed-input]
+                                                                       [::validation-error])
+                                                            (fn [ctx]
+                                                              (assoc-in ctx [::parsed-input :id] id)))
                                :exists?               (if-let [id (coerce-id schema id)]
                                                         (find-by-id (d/db cnx) id [:entity]))
                                :handle-not-found      (fn [_]
                                                         {:error (str "Could not find " name " with id: " id)})
-                               ;; :can-put-to-missing?   true
-                               :malformed?            (malformed? [:request :body] [::parsed-input])
+                               :can-put-to-missing?   true
+                               :put!                  (creator! cnx [::valid-parsed-input] refs)
                                :handle-malformed      (fn [ctx]
                                                         {:error (:parser-error ctx)})
-                               :handle-ok             #(as-response (:entity %) schema refs)))))))
+                               :handle-ok             #(as-response (:entity %) schema refs)
+                               :handle-created        (pr-str "Created.")
+                               :handle-unprocessable-entity
+                                 (comp schema.utils/error-val ::validation-error)))))))
 
 
 
 
                                ;; :new?                (has-path? [::entity])
-                               ;; :put!                (replacer! cnx [::entity] [::valid-parsed-input])
+
                                ;; :delete!             (deleter! cnx [::entity])
 

@@ -184,7 +184,9 @@ HTTP method, that does corresponding thing on an underlying datomic database."
       (is (submap? {:status 201, :body "Created."}
                    (api :post "/user" {} (pr-str {:id 1, :email "torvalds@linux.com", :name "Linus"})))))
 
-;    (api :put "/user/2" {} (pr-str {:email "hicky@clojure.com", :name "Rich"}))
+    (testing "creation via put"
+      (is (submap? {:status 201, :body "Created."}
+                   (api :put "/user/2" {} (pr-str {:email "hicky@clojure.com", :name "Rich"})))))
 
     (testing "creation with validation errors"
       (is (submap? {:status 422 :body {:id 'missing-required-key}}
