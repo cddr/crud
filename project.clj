@@ -16,8 +16,7 @@
                  [prismatic/schema "0.2.6"]
                  [clj-time "0.8.0"]
                  [cheshire "5.3.1"]]
-  :plugins [[lein-ring "0.8.12"]
-            [lein-marginalia "0.8.1"]]
+  :plugins [[lein-ring "0.8.12"]]
   :ring {:handler crud.handler/app}
   :profiles
   {:dev {:dependencies [[javax.servlet/servlet-api "2.5"]
