@@ -1,4 +1,4 @@
-(in-ns 'crud.test.resource)
+(in-ns 'crud.test.core)
 
 (defn path-prefix [resource] (str "/" (-> resource :name clojure.string/lower-case)))
 (defn submap?     [a b]      (clojure.set/subset? (set a) (set b)))

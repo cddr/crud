@@ -1,4 +1,4 @@
-(ns crud.resource
+(ns crud.core
   "Maps datomic attribute definitions to prismatic schemata
 and vice versa"
   (:require [datomic.api :as d]

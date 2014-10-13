@@ -1,4 +1,4 @@
-(ns crud.test.resource
+(ns crud.test.core
   "The aim here is to be the glue between HTTP resources and datomic persistence.
 To do that, we provide a function that returns a set of handlers, one for each
 HTTP method, that does corresponding thing on an underlying datomic database."
@@ -6,7 +6,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
             [schema.core :as s :refer [Str Bool Num Int Inst Keyword]]
             [datomic.api :as d]
             [integrity.datomic :as db]
-            [crud.resource :as r]
+            [crud.core :as r]
             [compojure.core :as c]
             [ring.mock.request :as client]
             [ring.middleware.defaults :refer :all]
@@ -183,6 +183,8 @@ HTTP method, that does corresponding thing on an underlying datomic database."
     (testing "creation"
       (is (submap? {:status 201, :body "Created."}
                    (api :post "/user" {} (pr-str {:id 1, :email "torvalds@linux.com", :name "Linus"})))))
+
+;    (api :put "/user/2" {} (pr-str {:email "hicky@clojure.com", :name "Rich"}))
 
     (testing "creation with validation errors"
       (is (submap? {:status 422 :body {:id 'missing-required-key}}
