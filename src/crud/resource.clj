@@ -7,7 +7,7 @@ and vice versa"
             [integrity.datomic :as dat]
             [compojure.core :as http]
             [compojure.route :as route]
-            [liberator.core :as rest]
+            [liberator.core :as rest :refer [by-method]]
             [ring.util.response :as resp])
   (:import [java.net URL URI]))
 
@@ -16,41 +16,52 @@ and vice versa"
 (load "helpers")
 (load "protocol")
 
-;; (defn api-routes [cnx & definition]
-;;   (let [{:keys [name schema uniqueness refs]} definition
-;;         with-overrides (fn [& b] (merge (apply hash-map b) definition))]
-;;     (route/routes
-;;      ;; a collection of resources can be queried, or appended to
-;;      (route/ANY "/" []
-;;        (rest/resource
-;;         (with-overrides
-;;           :available-media-types ["application/edn"]
-;;           :allowed-methods       [:get :post]
-;;           :known-content-type?   known-content-type?
-;;           :malformed?            (parser [::parsed-input])
-;;           :processable?          (validator schema [::parsed-input] [::valid-parsed-input])
-;;           :post!                 (creator! cnx [::valid-parsed-input])
-;;           :post-redirect         true
-;;           :location              (redirector name [::valid-parsed-input :id])
-;;           :handle-ok             (handler (d/db cnx) :collection definition [::valid-parsed-input])))))))
+(defn api-routes [cnx definition]
+  (let [{:keys [name schema uniqueness refs]} definition
+        with-overrides (fn [& b] (merge (apply hash-map b) definition))]
+    (http/routes
+     ;; a collection of resources can be queried, or appended to
+     (http/ANY "/" []
+       (rest/resource
+        (with-overrides
+          :available-media-types ["application/edn"]
+          :allowed-methods       [:get :post]
+          :known-content-type?   known-content-type?
+          :malformed?            (malformed? [:request :body] [::parsed-input])
+          :processable?          (validator schema
+                                            [::parsed-input] [::valid-parsed-input] [::validation-error])
+          :post!                 (creator! cnx [::valid-parsed-input] refs)
+          :post-redirect         true
+          :location              (redirector [::valid-parsed-input :id])
+          :handle-ok             (handler (d/db cnx) :collection definition [::valid-parsed-input])
+          :handle-created        (pr-str "Created.")
+          :handle-unprocessable-entity
+                                 (comp schema.utils/error-val ::validation-error))))
 
 
-;;      ;; a single resource can be returned, patched, put, or deleted
-;;      (route/ANY "/:id" [id] (rest/resource
-;;                              (with-overrides
-;;                                :allowed-methods     [:get :patch :put :delete]
-;;                                :known-content-type? known-content-type?
-;;                                :exists?             (finder (d/db cnx) id [::entity])
-;;                                :malformed?          (parser [::parsed-input])
-;;                                :can-put-to-missing? true
-;;                                :new?                (has-path? [::entity])
-;;                                :put!                (replacer! cnx [::entity] [::valid-parsed-input])
-;;                                :delete!             (deleter! cnx [::entity])
-                               
+
+     ;; a single resource can be returned, patched, put, or deleted
+     (http/ANY "/:id" [id] (rest/resource
+                            (with-overrides
+                               :allowed-methods       [:get :patch :put :delete]
+                               :available-media-types ["application/edn"]
+                               :known-content-type?   known-content-type?
+                               :exists?               (if-let [id (coerce-id schema id)]
+                                                        (find-by-id (d/db cnx) id [:entity]))
+                               :handle-not-found      (fn [_]
+                                                        {:error (str "Could not find " name " with id: " id)})
+                               ;; :can-put-to-missing?   true
+                               :malformed?            (malformed? [:request :body] [::parsed-input])
+                               :handle-malformed      (fn [ctx]
+                                                        {:error (:parser-error ctx)})
+                               :handle-ok             #(as-response (:entity %) schema refs)))))))
 
 
-                               
-                       
+
+
+                               ;; :new?                (has-path? [::entity])
+                               ;; :put!                (replacer! cnx [::entity] [::valid-parsed-input])
+                               ;; :delete!             (deleter! cnx [::entity])
 
 ;; (defrecord Resource [name schema uniqueness])
 
@@ -209,10 +220,6 @@ and vice versa"
 ;; ;; (defn error-response [errors]
 ;; ;;   {:status 422
 ;; ;;    :body errors})
-
-;; ;; (defn finder [resource]
-;; ;;   (fn [db params]
-;; ;;     (d/entity db params)))
 
 ;; ;; (defn transactor [resource]
 ;; ;;   (fn [cnx params]

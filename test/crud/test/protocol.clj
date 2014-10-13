@@ -1,19 +1,5 @@
 (in-ns 'crud.test.resource)
 
-(deftest test-creator!
-  (let [cnx (test-connection {:resources [User Tweet]})
-
-        create (fn [resource input]
-                 (let [path [:crud/resource/data]]
-                   ((r/creator! cnx path) (assoc-in {} path input))))]
-    (let [{:keys [db-after]} (create User {:id 1, :email "torvalds@linux.com", :name "Linus"})]
-      (is (r/find-by db-after :id 1))
-
-      (let [linus (r/find-by db-after :id 1)
-            {:keys [db-after]} (create Tweet {:id 2, :body "I'm doing an OS (just a hobby)"
-                                              :author (:db/id linus)})]
-        (is (r/find-by db-after :id 2))))))        
-
 (deftest test-validator
   (let [schema {:foo Int, :bar Str}
         subject (r/validator schema [:parsed] [:valid] [:error])
@@ -48,8 +34,10 @@
     (is (= [false {:parsed-input {:name "linus", :email "torvalds@linux.com"}}]
            (subject (request (pr-str {:name "linus", :email "torvalds@linux.com"})))))
 
-    (is (= [true {:parser-error "Map literal must contain an even number of forms"}]
-           (subject (request "{:name}"))))))
+    (let [decision (subject (request "{:name}"))]
+      (is (= true (first decision)))
+      (is (submap? {:parser-error "Map literal must contain an even number of forms"}
+                   (second decision))))))
 
 (deftest test-redirector
   (let [redirect (r/redirector [:id])
@@ -61,9 +49,13 @@
 
 (def test-data
   (let [[author] (test-ids 1)]
-    [(r/as-facts author {:id 1, :email "linus@linux.com", :name "Linus"})
-     (r/as-facts (d/tempid :db.part/user) {:id 2, :body "I'm gonna build an OS", :author author})
-     (r/as-facts (d/tempid :db.part/user) {:id 3, :body "Don't send crap like that to me again", :author author})]))
+    [(r/as-facts author {:id 1, :email "linus@linux.com", :name "Linus"}
+                 (:refs User))
+     (r/as-facts (d/tempid :db.part/user) {:id 2, :body "I'm gonna build an OS", :author author}
+                 (:refs Tweet))
+     (r/as-facts (d/tempid :db.part/user) {:id 3, :body "Don't send crap like that to me again", :author author}
+                 (:refs Tweet))]))
+     
   
 (deftest test-handler
   (let [{:keys [cnx]} (test-db {:resources [User Tweet]
@@ -84,10 +76,3 @@
             result (query {:id 1})]
         (is (= {:name "Linus", :email "linus@linux.com", :id 1}
                result))))))
-  
-    
-
-
-        
-    
-    

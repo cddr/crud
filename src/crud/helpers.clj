@@ -5,9 +5,13 @@
   (= :get (get-in ctx [:request :request-method])))
 
 (defn known-content-type? [ctx]
-  (if (= "application/edn" (get-in ctx [:request :headers "content-type"]))
+  (if (= "application/edn" (get-in ctx [:request :content-type]))
     true
     [false {:error "Unsupported content type"}]))
+
+(defn coerce-id [schema id]
+  (let [c (coercer (apply hash-map (find schema :id)) string-coercion-matcher)]
+    (:id (c {:id id}))))
 
 ;; Schema Helpers
 (defn build-ref [resource referrer referent]
@@ -21,7 +25,7 @@ the current context"
                           (:name resource)
                           ((comp referent referrer) entity)))
    :as-lookup-ref (fn [uri]
-                    (let [[_ id] (clojure.string/split uri #"/")
+                    (let [[_ id] (take-last 2 (clojure.string/split (.getPath (URI. uri)) #"/"))
                           coerce (coercer (apply hash-map (find (:schema resource) referent))
                                           string-coercion-matcher)]
                       [referent (referent (coerce {referent id}))]))})

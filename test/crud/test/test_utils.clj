@@ -25,20 +25,58 @@
 (defn test-teardown []
   (d/delete-database test-uri))
 
-;; (defn mock-api [cx resources & request-args]
-;;   (let [app (-> (apply c/routes (for [r resources]
-;;                                   (c/context (path-prefix r) []
-;;                                     (r/api-routes cx r))))
-;;                 (wrap-restful-format :formats [:edn :json])
-;;                 (wrap-defaults api-defaults))
-;;         parse-response (fn [response]
-;;                          (assoc response :body (clojure.edn/read-string (slurp (:body response)))))]
-;;     (let [[method path params body] request-args]
-;;       (-> (ring.mock.request/request method path params)
-;;           (ring.mock.request/content-type "application/edn")
-;;           (ring.mock.request/body (str (or body {})))
-;;           app
-;;           parse-response))))
+(defn test-db [test-env]
+  (let [{:keys [resources test-data]} test-env
+        tx (fn [cx tx-data] @(d/transact cx tx-data) cx)
+        meta (reduce keep-one-ident [] (vec (mapcat r/datomic-schema
+                                                    (map :schema resources)
+                                                    (map :uniqueness resources)
+                                                    (map :refs resources))))]
+    (let [c (test-setup)]
+      (tx c meta)
+      (tx c test-data)
+      {:cnx c
+       :db (fn []
+             (d/db c))})))
+
+(defn test-app [resources test-data]
+  (let [{:keys [cnx]} (test-db {:resources resources
+                                :test-data (vec (reduce concat [] test-data))})]
+    (apply c/routes
+           (map (fn [r]
+                  (c/context (path-prefix r) []
+                    (r/api-routes cnx r)))
+                resources))))
+
+(defn make-client [app content-type]
+  (let [parse-response (fn [response]
+                         (if (:body response)
+                           (assoc response :body (clojure.edn/read-string (slurp (:body response))))
+                           :no-response))]
+    (fn client
+      ([method path]
+         (client method path {} {}))
+      ([method path params]
+         (client method path params {}))
+      ([method path params body]
+         (-> (ring.mock.request/request method path params)
+             (ring.mock.request/content-type "application/edn")
+             (ring.mock.request/body (pr-str (or body {})))
+             app
+             parse-response)))))
+
+(defn mock-api [cx resources & request-args]
+  (let [app (apply c/routes (for [r resources]
+                              (c/context (path-prefix r) []
+                                (r/api-routes cx r))))
+        parse-response (fn [response]
+                         (assoc response :body (clojure.edn/read-string (slurp (:body response)))))]
+    (let [[method path params body] request-args]
+      (-> (ring.mock.request/request method path params)
+          (ring.mock.request/content-type "application/edn")
+          (ring.mock.request/body (str (or body {})))
+          app
+          parse-response))))
 
 ;; (defn mock-api-for [test-env]
 ;;   (let [{:keys [resources test-data]} test-env
@@ -67,17 +105,4 @@
     (-> (test-setup) (tx meta) (tx data))))
 
 
-(defn test-db [test-env]
-  (let [{:keys [resources test-data]} test-env
-        tx (fn [cx tx-data] @(d/transact cx tx-data) cx)
-        meta (reduce keep-one-ident [] (vec (mapcat r/datomic-schema
-                                                    (map :schema resources)
-                                                    (map :uniqueness resources)
-                                                    (map :refs resources))))]
-    (let [c (test-setup)]
-      (tx c meta)
-      (tx c test-data)
-      {:cnx c
-       :db (fn []
-             (d/db c))})))
 

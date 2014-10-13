@@ -7,9 +7,15 @@
 ;; here return a function designed to be used in the liberator web-machine. That is, they accept a context map
 ;; containing the the HTTP request and response along with any other keys added by prior steps in the machine
 
-(defn creator! [c data-path]
+(defn find-by-id [db id path]
   (fn [ctx]
-    (apply-tx c (d/tempid :db.part/user) (get-in ctx data-path))))
+    (if-let [entity (find-by db :id id)]
+      [true (assoc-in ctx path entity)]
+      false)))
+
+(defn creator! [c data-path refs]
+  (fn [ctx]
+    (apply-tx c (as-facts (d/tempid :db.part/user) (get-in ctx data-path) refs))))
 
 (defn validator [schema parsed-input-path valid-input-path error-input-path]
   (fn [ctx]
@@ -26,9 +32,14 @@
 (defn malformed? [input-path output-path]
   (fn [ctx]
     (try
-      [false (assoc-in {} output-path (clojure.edn/read-string (get-in ctx input-path)))]
+      (let [body-as-str (if-let [body (get-in ctx input-path)]
+                          (condp instance? body
+                            java.lang.String body
+                            (slurp (clojure.java.io/reader body))))]
+        [false (assoc-in {} output-path (clojure.edn/read-string body-as-str))])
       (catch RuntimeException e
-        [true {:parser-error (.getLocalizedMessage e)}]))))
+        [true {:representation {:media-type "application/edn"}
+               :parser-error (.getLocalizedMessage e)}]))))
 
 (defn redirector [id-path]
   (fn [ctx]

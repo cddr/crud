@@ -24,7 +24,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
   {:name "tweet"
    :schema {:id Int
             :body Str
-            :author URI}
+            :author Str}
    :uniqueness {:id :db.unique/identity}
    :refs [(r/build-ref User :author :id)]})
 
@@ -44,7 +44,13 @@ HTTP method, that does corresponding thing on an underlying datomic database."
     (is (= :id (:referent test-ref)))
     
     (is (= "user/42" ((:as-response test-ref) {:author {:id 42}})))
-    (is (= [:id 42] ((:as-lookup-ref test-ref) "user/42")))))
+    (is (= [:id 42] ((:as-lookup-ref test-ref) "user/42")))
+    (is (= [:id 42] ((:as-lookup-ref test-ref) "http://example.com/user/42")))
+
+    ;; At the back of my head here is that in reality, ids are going to be squuids so
+    ;; there should just be a single "id" attribute would typically be shared between
+    ;; all entities.
+    (is (= [:id 42] ((:as-lookup-ref test-ref) "http://example.com/nested/user/42")))))
 
 (deftest test-known-content-type?
   (let [mime-request (fn [mime]
@@ -54,24 +60,52 @@ HTTP method, that does corresponding thing on an underlying datomic database."
     (is (= [false {:error "Unsupported content type"}]
            (r/known-content-type? (mime-request "application/json"))))))
 
+(defn requestor [mime-type]
+  (fn [method path params body]
+    (-> (client/request method path body)
+        (client/content-type mime-type)
+        (client/header "Accept" mime-type)
+        (client/body body))))
+
+(defn responder [mimetype]
+  (fn [response]
+    (case mimetype
+      "application/edn" (assoc response
+                          :body (clojure.edn/read-string (:body response))))))
   
-;; (deftest test-garbage-requests
-;;   (let [api (mock-api-for {:resources [Tweet]})]
-;;     (is (= 404 (-> (api :get "/tweet/nonsense") :status)))
-;;     (is (= 422 (-> (api :get "/tweet" {:bad "params"}) :status)))))
+(deftest test-garbage-requests
+  (let [app (-> (test-app [Tweet] []))
+        api (comp (responder "application/edn")
+                  app
+                  (requestor "application/edn"))]
+    (is (submap? {:status 404, :body {:error "Could not find tweet with id: nonsense"}}
+                 (api :get "/tweet/nonsense" {} (pr-str {}))))
 
-;; (deftest test-not-found
-;;   (let [api (mock-api-for {:resources [Tweet]})]
-;;     (is (submap? {:status 404
-;;                   :body {:error "Failed to find Tweet with id: 99"}}
-;;                  (api :get "/tweet/99")))))
+    (is (submap? {:status 400, :body {:error "EOF while reading"}}
+                 (api :put "/tweet/42" {} "{syntax-error")))))
 
-;; (deftest test-post
-;;   (let [api (mock-api-for {:resources [Tweet User]})]
-;;     (api :post "/user" {} {:id 1, :email "torvalds@linux.com", :name "Linus"}) 
-;;     (let [response (api :post "/tweet" {} {:body "test post" :author 1})]
-;;       (is (= 202            (-> response :status)))
-;;       (is (= {}             (-> response :body))))))
+(deftest test-post-then-get
+  (let [app (-> (test-app [Tweet User] []))
+        api (comp (responder "application/edn")
+                  app
+                  (requestor "application/edn"))]
+    (testing "creation"
+      (is (submap? {:status 201, :body "Created."}
+                   (api :post "/user" {} (pr-str {:id 1, :email "torvalds@linux.com", :name "Linus"})))))
+
+    (testing "creation with validation errors"
+      (is (submap? {:status 422 :body {:id 'missing-required-key}}
+                   (api :post "/user" {} (pr-str {:email "torvalds@linux.com", :name "Linus"})))))
+
+    (testing "get previously created resource"
+      (is (submap? {:status 200 :body {:name "Linus", :email "torvalds@linux.com", :id 1}}
+                   (api :get "/user/1" {} nil))))
+
+    (testing "create resource that references previously created resource"
+      (is (submap? {:status 201 :body "Created."}
+                   (api :post "/tweet" {} (pr-str {:id 3, :body "Hello World!"
+                                                   :author "http://localhost:80/user/1"})))))))
+                
 
 ;; (deftest test-patch
 ;;   (let [api (mock-api-for {:resources [Tweet User]})]
@@ -83,17 +117,6 @@ HTTP method, that does corresponding thing on an underlying datomic database."
 ;;       (is (submap? {:body "better tweet"
 ;;                     :author 1}
 ;;                    (:body (api :get posted-uri)))))))
-
-;; (deftest test-find-by-id
-;;   (let [api (mock-api-for {:resources [Tweet User]})]
-;;     (api :post "/user" {} {:id 1, :email "torvalds@linux.com", :name "Linus"})    
-;;     (api :post "/tweet" {} {:id 101, :author 1, :body "hello world!"})
-
-;;     (is (submap? {:status 200
-;;                   :body {:id 101
-;;                          :body "hello world!"
-;;                          :author 1}}
-;;                  (api :get "/tweet/101")))))
 
 ;; (deftest test-find-by-attr
 ;;   (let [api (mock-api-for {:resources [Tweet User]})]
