@@ -47,14 +47,6 @@ HTTP method, that does corresponding thing on an underlying datomic database."
                 :author {:id 1}}]
     (is (= {:author "user/1", :msg "hello world"} (r/as-response entity schema refs)))))
 
-(deftest test-redirector
-  (let [redirect (r/redirector [:id])
-        request (fn [input]
-                  (merge {:request (client/request :post "/thing")}
-                         input))]
-    (is (= "http://localhost:80/thing/1" (str (redirect (request {:id 1})))))
-    (is (= "http://localhost:80/thing/2" (str (redirect (request {:id 2})))))))
-
 (def test-data
   (let [[author] (test-ids 1)]
     [(r/as-facts author {:id 1, :email "linus@linux.com", :name "Linus"}

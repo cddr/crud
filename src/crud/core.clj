@@ -246,15 +246,14 @@ the current context"
         [true {:representation {:media-type "application/edn"}
                :parser-error (.getLocalizedMessage e)}]))))
 
-(defn redirector [id-path]
-  (fn [ctx]
-    (let [request (get-in ctx [:request])]
-      (URL. (format "%s://%s:%s%s/%s"
-                    (name (:scheme request))
-                    (:server-name request)
-                    (:server-port request)
-                    (:uri request)
-                    (get-in ctx id-path))))))
+(defn redirector [ctx]
+  (let [request (get-in ctx [:request])]
+    (URL. (format "%s://%s:%s%s/%s"
+                  (name (:scheme request))
+                  (:server-name request)
+                  (:server-port request)
+                  (:uri request)
+                  (get-in ctx [::valid-parsed-input :id])))))
 
 (defn handler [db cardinality resource input-path]
   (let [{:keys [schema refs]} resource
@@ -280,7 +279,7 @@ the current context"
           :processable?          (validator schema)
           :post!                 (creator! cnx refs)
           :post-redirect         true
-          :location              (redirector [::valid-parsed-input :id])
+          :location              redirector
           :handle-ok             (handler (d/db cnx) :collection definition [::valid-parsed-input])
           :handle-created        (pr-str "Created.")
           :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
