@@ -217,17 +217,20 @@ the current context"
       (apply-tx c [[:db.fn/retractEntity (:db/id e)]])
       (throw (Exception. "wtf????"))))) 
 
-(defn validator [schema parsed-input-path valid-input-path error-input-path]
-  (fn [ctx]
-    (let [validate-with (fn [s]
-                          (let [validator (coercer s string-coercion-matcher)
-                                validated (validator (get-in ctx parsed-input-path))]
-                            (if (schema.utils/error? validated)
-                              [false (assoc-in {} error-input-path validated)]
-                              [true (assoc-in {} valid-input-path validated)])))]
-      (if (get? ctx)
-        (validate-with (optionalize schema))
-        (validate-with schema)))))
+(defn validator [schema]
+  (let [parsed-input-path [::parsed-input]
+        valid-input-path [::valid-parsed-input]
+        error-input-path [::validation-error]]
+    (fn [ctx]
+      (let [validate-with (fn [s]
+                            (let [validator (coercer s string-coercion-matcher)
+                                  validated (validator (get-in ctx parsed-input-path))]
+                              (if (schema.utils/error? validated)
+                                [false (assoc-in {} error-input-path validated)]
+                                [true (assoc-in {} valid-input-path validated)])))]
+        (if (get? ctx)
+          (validate-with (optionalize schema))
+          (validate-with schema))))))
 
 (defn malformed? [ctx]
   (let [input-path [:request :body]
@@ -273,8 +276,7 @@ the current context"
           :allowed-methods       [:get :post]
           :known-content-type?   known-content-type?
           :malformed?            malformed?
-          :processable?          (validator schema
-                                            [::parsed-input] [::valid-parsed-input] [::validation-error])
+          :processable?          (validator schema)
           :post!                 (creator! cnx [::valid-parsed-input] refs)
           :post-redirect         true
           :location              (redirector [::valid-parsed-input :id])
@@ -289,10 +291,7 @@ the current context"
           :available-media-types        ["application/edn"]
           :known-content-type?          known-content-type?
           :malformed?                   malformed?
-          :processable?                 (comp (validator schema
-                                                         [::parsed-input]
-                                                         [::valid-parsed-input]
-                                                         [::validation-error])
+          :processable?                 (comp (validator schema)
                                               (fn [ctx]
                                                 (assoc-in ctx [::parsed-input :id] id)))
           :exists?                      (if-let [id (coerce-id schema id)]
@@ -316,10 +315,7 @@ the current context"
           :available-media-types ["application/edn"]
           :known-content-type?   known-content-type?
           :malformed?            malformed?
-          :processable?          (comp (validator schema
-                                                  [::parsed-input]
-                                                  [::valid-parsed-input]
-                                                  [::validation-error])
+          :processable?          (comp (validator schema)
                                        (fn [ctx]
                                          (assoc-in ctx [::parsed-input :id] id)))
           :exists?               (if-let [id (coerce-id schema id)]
@@ -343,10 +339,7 @@ the current context"
           :available-media-types ["application/edn"]
           :known-content-type?   known-content-type?
           :malformed?            malformed?
-          :processable?          (comp (validator (optionalize schema)
-                                                  [::parsed-input]
-                                                  [::valid-parsed-input]
-                                                  [::validation-error])
+          :processable?          (comp (validator (optionalize schema))
                                        (fn [ctx]
                                          (assoc-in ctx [::parsed-input :id] id)))
           :exists?               (if-let [id (coerce-id schema id)]
