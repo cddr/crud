@@ -281,6 +281,10 @@ the current context"
   (fn [ctx]
     {:error (:parser-error ctx)}))
 
+(defn handle-ok [schema refs]
+  (fn [ctx]
+    (as-response (:entity ctx) schema refs)))
+
 (defn api-routes [cnx definition]
   (let [{:keys [name schema uniqueness refs]} definition
         with-overrides (fn [& b] (merge (apply hash-map b) definition))
@@ -316,7 +320,7 @@ the current context"
           :can-put-to-missing?          true
           :put!                         (creator! cnx refs)
           :handle-malformed             handle-malformed
-          :handle-ok                    #(as-response (:entity %) schema refs)
+          :handle-ok                    (handle-ok schema refs)
           :handle-created               (pr-str "Created.")
           :handle-unprocessable-entity  (comp schema.utils/error-val ::validation-error))))
 
@@ -334,7 +338,7 @@ the current context"
           :can-put-to-missing?   true
           :put!                  (creator! cnx refs)
           :handle-malformed      handle-malformed
-          :handle-ok             #(as-response (:entity %) schema refs)
+          :handle-ok             (handle-ok schema refs)
           :handle-created        (pr-str "Created.")
           :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
 
@@ -352,7 +356,7 @@ the current context"
           :can-put-to-missing?   true
           :patch!                (creator! cnx refs)
           :handle-malformed      handle-malformed
-          :handle-ok             #(as-response (:entity %) schema refs)
+          :handle-ok             (handle-ok schema refs)
           :handle-created        (pr-str "Created.")
           :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
      
