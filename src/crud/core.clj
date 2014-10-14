@@ -207,9 +207,10 @@ the current context"
       [true (assoc-in ctx path entity)]
       [false (assoc-in ctx [::parsed-input :id] id)])))
 
-(defn creator! [c data-path refs]
+(defn creator! [c refs]
   (fn [ctx]
-    (apply-tx c (as-facts (d/tempid :db.part/user) (get-in ctx data-path) refs))))
+    (apply-tx c (as-facts (d/tempid :db.part/user)
+                          (get-in ctx [::valid-parsed-input]) refs))))
 
 (defn destroyer! [c]
   (fn [ctx]
@@ -277,7 +278,7 @@ the current context"
           :known-content-type?   known-content-type?
           :malformed?            malformed?
           :processable?          (validator schema)
-          :post!                 (creator! cnx [::valid-parsed-input] refs)
+          :post!                 (creator! cnx refs)
           :post-redirect         true
           :location              (redirector [::valid-parsed-input :id])
           :handle-ok             (handler (d/db cnx) :collection definition [::valid-parsed-input])
@@ -301,7 +302,7 @@ the current context"
           :handle-not-found             (fn [_]
                                           {:error (str "Could not find " name " with id: " id)})
           :can-put-to-missing?          true
-          :put!                         (creator! cnx [::valid-parsed-input] refs)
+          :put!                         (creator! cnx refs)
           :handle-malformed             (fn [ctx]
                                           {:error (:parser-error ctx)})
           :handle-ok                    #(as-response (:entity %) schema refs)
@@ -325,7 +326,7 @@ the current context"
           :handle-not-found      (fn [_]
                                    {:error (str "Could not find " name " with id: " id)})
           :can-put-to-missing?   true
-          :put!                  (creator! cnx [::valid-parsed-input] refs)
+          :put!                  (creator! cnx refs)
           :handle-malformed      (fn [ctx]
                                    {:error (:parser-error ctx)})
           :handle-ok             #(as-response (:entity %) schema refs)
@@ -349,7 +350,7 @@ the current context"
           :handle-not-found      (fn [_]
                                    {:error (str "Could not find " name " with id: " id)})
           :can-put-to-missing?   true
-          :patch!                (creator! cnx [::valid-parsed-input] refs)
+          :patch!                (creator! cnx refs)
           :handle-malformed      (fn [ctx]
                                    {:error (:parser-error ctx)})
           :handle-ok             #(as-response (:entity %) schema refs)
