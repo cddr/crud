@@ -210,7 +210,19 @@ HTTP method, that does corresponding thing on an underlying datomic database."
       (is (submap? {:status 200, :body {:id 1, :email "torvalds@linux.com", :name "Linus Torvalds"}}
                    (api :get "/user/1" {} nil)))
       (is (submap? {:status 422, :body {:email 'missing-required-key}}
-                   (api :put "/user/1" {} (pr-str {:name "Linus"})))))))
+                   (api :put "/user/1" {} (pr-str {:name "Linus"})))))
+
+    (testing "update resource using PATCH"
+      (is (submap? {:status 204, :body nil}
+                   (api :patch "/user/1" {} (pr-str {:name "Linus"}))))
+      (is (submap? {:status 200, :body {:id 1, :email "torvalds@linux.com", :name "Linus"}}
+                   (api :get "/user/1" {} nil))))
+
+    (testing "delete resource"
+      (is (submap? {:status 204, :body "Deleted."}
+                   (api :delete "/user/2" {} nil)))
+      (is (submap? {:status 404}
+                   (api :get "/user/2" {} nil))))))
 
 ;; (deftest test-patch
 ;;   (let [api (mock-api-for {:resources [Tweet User]})]
