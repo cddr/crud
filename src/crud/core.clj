@@ -201,11 +201,12 @@ the current context"
 ;; here return a function designed to be used in the liberator web-machine. That is, they accept a context map
 ;; containing the the HTTP request and response along with any other keys added by prior steps in the machine
 
-(defn find-by-id [db id path]
+(defn find-by-id [db schema id]
   (fn [ctx]
-    (if-let [entity (find-by db :id id)]
-      [true (assoc-in ctx path entity)]
-      [false (assoc-in ctx [::parsed-input :id] id)])))
+    (if-let [id (coerce-id schema id)]
+      (if-let [entity (find-by db :id id)]
+        [true (assoc-in ctx [:entity] entity)]
+        [false (assoc-in ctx [::parsed-input :id] id)]))))
 
 (defn creator! [c refs]
   (fn [ctx]
@@ -271,7 +272,8 @@ the current context"
 
 (defn api-routes [cnx definition]
   (let [{:keys [name schema uniqueness refs]} definition
-        with-overrides (fn [& b] (merge (apply hash-map b) definition))]
+        with-overrides (fn [& b] (merge (apply hash-map b) definition))
+        db (d/db cnx)]
     (http/routes
      ;; a collection of resources can be queried, or appended to
      (http/ANY "/" []
@@ -285,7 +287,7 @@ the current context"
           :post!                 (creator! cnx refs)
           :post-redirect         true
           :location              redirector
-          :handle-ok             (handler (d/db cnx) :collection definition)
+          :handle-ok             (handler db :collection definition)
           :handle-created        (pr-str "Created.")
           :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
 
@@ -297,8 +299,7 @@ the current context"
           :known-content-type?          known-content-type?
           :malformed?                   malformed?
           :processable?                 (comp (validator schema) (with-id id))
-          :exists?                      (if-let [id (coerce-id schema id)]
-                                          (find-by-id (d/db cnx) id [:entity]))
+          :exists?                      (find-by-id db schema id)
           :new?                         (fn [ctx]
                                           (not (:entity ctx)))
           :handle-not-found             (fn [_]
@@ -319,8 +320,7 @@ the current context"
           :known-content-type?   known-content-type?
           :malformed?            malformed?
           :processable?          (comp (validator schema) (with-id id))
-          :exists?               (if-let [id (coerce-id schema id)]
-                                   (find-by-id (d/db cnx) id [:entity]))
+          :exists?               (find-by-id db schema id)
           :new?                  (fn [ctx]
                                    (not (:entity ctx)))
           :handle-not-found      (fn [_]
@@ -341,8 +341,7 @@ the current context"
           :known-content-type?   known-content-type?
           :malformed?            malformed?
           :processable?          (comp (validator (optionalize schema)) (with-id id))
-          :exists?               (if-let [id (coerce-id schema id)]
-                                   (find-by-id (d/db cnx) id [:entity]))
+          :exists?               (find-by-id db schema id) 
           :new?                  (fn [ctx]
                                    (not (:entity ctx)))
           :handle-not-found      (fn [_]
@@ -361,8 +360,7 @@ the current context"
           :allowed-methods       [:delete]
           :available-media-types ["application/edn"]
           :known-content-type?   known-content-type?
-          :exists?               (if-let [id (coerce-id schema id)]
-                                   (find-by-id (d/db cnx) id [:entity]))
+          :exists?               (find-by-id db schema id)
           :delete!               (destroyer! cnx)
           :handle-not-found      (fn [_]
                                    {:error (str "Could not find " name " with id: " id)})
