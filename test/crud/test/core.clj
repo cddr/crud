@@ -169,7 +169,10 @@ HTTP method, that does corresponding thing on an underlying datomic database."
         api (comp (responder "application/edn")
                   app
                   (requestor "application/edn"))]
-    (is (submap? {:status 404, :body {:error "Could not find tweet with id: nonsense"}}
+    (is (submap? {:status 404, :body {:error "Could not find tweet with id: 666"}}
+                 (api :get "/tweet/666" {} nil)))
+                  
+    (is (submap? {:status 422, :body {:id '(not (integer? nonsense))}}
                  (api :get "/tweet/nonsense" {} (pr-str {}))))
 
     (is (submap? {:status 400, :body {:error "EOF while reading"}}
@@ -180,27 +183,36 @@ HTTP method, that does corresponding thing on an underlying datomic database."
         api (comp (responder "application/edn")
                   app
                   (requestor "application/edn"))]
-    (testing "creation"
+    (testing "create with POST"
       (is (submap? {:status 201, :body "Created."}
                    (api :post "/user" {} (pr-str {:id 1, :email "torvalds@linux.com", :name "Linus"})))))
 
-    (testing "creation via put"
+    (testing "create with PUT"
       (is (submap? {:status 201, :body "Created."}
                    (api :put "/user/2" {} (pr-str {:email "hicky@clojure.com", :name "Rich"})))))
 
-    (testing "creation with validation errors"
+    (testing "create with POST and invalid body"
       (is (submap? {:status 422 :body {:id 'missing-required-key}}
                    (api :post "/user" {} (pr-str {:email "torvalds@linux.com", :name "Linus"})))))
 
-    (testing "get previously created resource"
+    (testing "read with GET"
       (is (submap? {:status 200 :body {:name "Linus", :email "torvalds@linux.com", :id 1}}
                    (api :get "/user/1" {} nil))))
 
-    (testing "create resource that references previously created resource"
+    (testing "create with POST containing reference to other resource"
       (is (submap? {:status 201 :body "Created."}
                    (api :post "/tweet" {} (pr-str {:id 3, :body "Hello World!"
-                                                   :author "http://localhost:80/user/1"})))))))
-                
+                                                   :author "http://localhost:80/user/1"})))))
+    (testing "update resource using PUT"
+      (is (submap? {:status 204, :body nil}
+                   (api :put "/user/1" {} (pr-str {:email "torvalds@linux.com", :name "Linus Torvalds"}))))
+      (is (submap? {:status 200, :body {:id 1, :email "torvalds@linux.com", :name "Linus Torvalds"}}
+                   (api :get "/user/1" {} nil)))
+      (is (submap? {:status 422, :body {:email 'missing-required-key}}
+                   (api :put "/user/1" {} (pr-str {:name "Linus"})))))
+
+    (testing "update resource using PATCH"
+      (api :patch "/user/1" {} (pr-str {:name "Linus"})))))
 
 ;; (deftest test-patch
 ;;   (let [api (mock-api-for {:resources [Tweet User]})]

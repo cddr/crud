@@ -293,6 +293,8 @@ the current context"
                                                               (assoc-in ctx [::parsed-input :id] id)))
                                :exists?               (if-let [id (coerce-id schema id)]
                                                         (find-by-id (d/db cnx) id [:entity]))
+                               :new?                  (fn [ctx]
+                                                        (not (:entity ctx)))
                                :handle-not-found      (fn [_]
                                                         {:error (str "Could not find " name " with id: " id)})
                                :can-put-to-missing?   true
