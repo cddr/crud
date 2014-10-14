@@ -10,7 +10,8 @@ HTTP method, that does corresponding thing on an underlying datomic database."
             [compojure.core :as c]
             [ring.mock.request :as client]
             [ring.middleware.defaults :refer :all]
-            [ring.middleware.format :refer [wrap-restful-format]])
+            [ring.middleware.format :refer [wrap-restful-format]]
+            [liberator.dev :as dev])
   (:import [java.net URI]))
 
 ;; TODO: write quick-check generators for these structures to make the code bullet-proof
@@ -171,7 +172,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
                   (requestor "application/edn"))]
     (is (submap? {:status 404, :body {:error "Could not find tweet with id: 666"}}
                  (api :get "/tweet/666" {} nil)))
-                  
+
     (is (submap? {:status 422, :body {:id '(not (integer? nonsense))}}
                  (api :get "/tweet/nonsense" {} (pr-str {}))))
 
@@ -209,10 +210,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
       (is (submap? {:status 200, :body {:id 1, :email "torvalds@linux.com", :name "Linus Torvalds"}}
                    (api :get "/user/1" {} nil)))
       (is (submap? {:status 422, :body {:email 'missing-required-key}}
-                   (api :put "/user/1" {} (pr-str {:name "Linus"})))))
-
-    (testing "update resource using PATCH"
-      (api :patch "/user/1" {} (pr-str {:name "Linus"})))))
+                   (api :put "/user/1" {} (pr-str {:name "Linus"})))))))
 
 ;; (deftest test-patch
 ;;   (let [api (mock-api-for {:resources [Tweet User]})]

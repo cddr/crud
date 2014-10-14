@@ -273,38 +273,115 @@ the current context"
           :location              (redirector [::valid-parsed-input :id])
           :handle-ok             (handler (d/db cnx) :collection definition [::valid-parsed-input])
           :handle-created        (pr-str "Created.")
-          :handle-unprocessable-entity
-                                 (comp schema.utils/error-val ::validation-error))))
+          :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
 
+     (http/GET "/:id" [id]
+       (rest/resource
+        (with-overrides
+          :allowed-methods              [:get :patch :put :delete]
+          :available-media-types        ["application/edn"]
+          :known-content-type?          known-content-type?
+          :malformed?                   (malformed? [:request :body] [::parsed-input])
+          :processable?                 (comp (validator schema
+                                                         [::parsed-input]
+                                                         [::valid-parsed-input]
+                                                         [::validation-error])
+                                              (fn [ctx]
+                                                (assoc-in ctx [::parsed-input :id] id)))
+          :exists?                      (if-let [id (coerce-id schema id)]
+                                          (find-by-id (d/db cnx) id [:entity]))
+          :new?                         (fn [ctx]
+                                          (not (:entity ctx)))
+          :handle-not-found             (fn [_]
+                                          {:error (str "Could not find " name " with id: " id)})
+          :can-put-to-missing?          true
+          :put!                         (creator! cnx [::valid-parsed-input] refs)
+          :handle-malformed             (fn [ctx]
+                                          {:error (:parser-error ctx)})
+          :handle-ok                    #(as-response (:entity %) schema refs)
+          :handle-created               (pr-str "Created.")
+          :handle-unprocessable-entity  (comp schema.utils/error-val ::validation-error))))
 
+     (http/PUT "/:id" [id]
+       (rest/resource
+        (with-overrides
+          :allowed-methods       [:get :patch :put :delete]
+          :available-media-types ["application/edn"]
+          :known-content-type?   known-content-type?
+          :malformed?            (malformed? [:request :body] [::parsed-input])
+          :processable?          (comp (validator schema
+                                                  [::parsed-input]
+                                                  [::valid-parsed-input]
+                                                  [::validation-error])
+                                       (fn [ctx]
+                                         (assoc-in ctx [::parsed-input :id] id)))
+          :exists?               (if-let [id (coerce-id schema id)]
+                                   (find-by-id (d/db cnx) id [:entity]))
+          :new?                  (fn [ctx]
+                                   (not (:entity ctx)))
+          :handle-not-found      (fn [_]
+                                   {:error (str "Could not find " name " with id: " id)})
+          :can-put-to-missing?   true
+          :put!                  (creator! cnx [::valid-parsed-input] refs)
+          :handle-malformed      (fn [ctx]
+                                   {:error (:parser-error ctx)})
+          :handle-ok             #(as-response (:entity %) schema refs)
+          :handle-created        (pr-str "Created.")
+          :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
 
-     ;; a single resource can be returned, patched, put, or deleted
-     (http/ANY "/:id" [id] (rest/resource
-                            (with-overrides
-                               :allowed-methods       [:get :patch :put :delete]
-                               :available-media-types ["application/edn"]
-                               :known-content-type?   known-content-type?
-                               :malformed?            (malformed? [:request :body] [::parsed-input])
-                               :processable?          (comp (validator schema
-                                                                       [::parsed-input]
-                                                                       [::valid-parsed-input]
-                                                                       [::validation-error])
-                                                            (fn [ctx]
-                                                              (assoc-in ctx [::parsed-input :id] id)))
-                               :exists?               (if-let [id (coerce-id schema id)]
-                                                        (find-by-id (d/db cnx) id [:entity]))
-                               :new?                  (fn [ctx]
-                                                        (not (:entity ctx)))
-                               :handle-not-found      (fn [_]
-                                                        {:error (str "Could not find " name " with id: " id)})
-                               :can-put-to-missing?   true
-                               :put!                  (creator! cnx [::valid-parsed-input] refs)
-                               :handle-malformed      (fn [ctx]
-                                                        {:error (:parser-error ctx)})
-                               :handle-ok             #(as-response (:entity %) schema refs)
-                               :handle-created        (pr-str "Created.")
-                               :handle-unprocessable-entity
-                                 (comp schema.utils/error-val ::validation-error)))))))
+     (http/PATCH "/:id" [id]
+                 (rest/resource
+                  (with-overrides
+                    :allowed-methods       [:get :patch :put :delete]
+                    :available-media-types ["application/edn"]
+                    :known-content-type?   known-content-type?
+                    :malformed?            (malformed? [:request :body] [::parsed-input])
+                    :processable?          (comp (validator schema
+                                                            [::parsed-input]
+                                                            [::valid-parsed-input]
+                                                            [::validation-error])
+                                                 (fn [ctx]
+                                                   (assoc-in ctx [::parsed-input :id] id)))
+                    :exists?               (if-let [id (coerce-id schema id)]
+                                             (find-by-id (d/db cnx) id [:entity]))
+                    :new?                  (fn [ctx]
+                                             (not (:entity ctx)))
+                    :handle-not-found      (fn [_]
+                                             {:error (str "Could not find " name " with id: " id)})
+                    :can-put-to-missing?   true
+                    :put!                  (creator! cnx [::valid-parsed-input] refs)
+                    :handle-malformed      (fn [ctx]
+                                             {:error (:parser-error ctx)})
+                    :handle-ok             #(as-response (:entity %) schema refs)
+                    :handle-created        (pr-str "Created.")
+                    :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
+     
+     (http/DELETE "/:id" [id]
+       (rest/resource
+        (with-overrides
+          :allowed-methods       [:get :patch :put :delete]
+          :available-media-types ["application/edn"]
+          :known-content-type?   known-content-type?
+          :malformed?            (malformed? [:request :body] [::parsed-input])
+          :processable?          (comp (validator schema
+                                                  [::parsed-input]
+                                                  [::valid-parsed-input]
+                                                  [::validation-error])
+                                       (fn [ctx]
+                                         (assoc-in ctx [::parsed-input :id] id)))
+          :exists?               (if-let [id (coerce-id schema id)]
+                                   (find-by-id (d/db cnx) id [:entity]))
+          :new?                  (fn [ctx]
+                                   (not (:entity ctx)))
+          :handle-not-found      (fn [_]
+                                   {:error (str "Could not find " name " with id: " id)})
+          :can-put-to-missing?   true
+          :put!                  (creator! cnx [::valid-parsed-input] refs)
+          :handle-malformed      (fn [ctx]
+                                   {:error (:parser-error ctx)})
+          :handle-ok             #(as-response (:entity %) schema refs)
+          :handle-created        (pr-str "Created.")
+          :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error)))))))
 
 
 
