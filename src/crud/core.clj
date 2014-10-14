@@ -265,6 +265,10 @@ the current context"
           :collection (into [] (map handle entities))
           :single (handle (first entities)))))))
 
+(defn with-id [id]
+  (fn [ctx]
+    (assoc-in ctx [::parsed-input :id] id)))
+
 (defn api-routes [cnx definition]
   (let [{:keys [name schema uniqueness refs]} definition
         with-overrides (fn [& b] (merge (apply hash-map b) definition))]
@@ -292,9 +296,7 @@ the current context"
           :available-media-types        ["application/edn"]
           :known-content-type?          known-content-type?
           :malformed?                   malformed?
-          :processable?                 (comp (validator schema)
-                                              (fn [ctx]
-                                                (assoc-in ctx [::parsed-input :id] id)))
+          :processable?                 (comp (validator schema) (with-id id))
           :exists?                      (if-let [id (coerce-id schema id)]
                                           (find-by-id (d/db cnx) id [:entity]))
           :new?                         (fn [ctx]
@@ -316,9 +318,7 @@ the current context"
           :available-media-types ["application/edn"]
           :known-content-type?   known-content-type?
           :malformed?            malformed?
-          :processable?          (comp (validator schema)
-                                       (fn [ctx]
-                                         (assoc-in ctx [::parsed-input :id] id)))
+          :processable?          (comp (validator schema) (with-id id))
           :exists?               (if-let [id (coerce-id schema id)]
                                    (find-by-id (d/db cnx) id [:entity]))
           :new?                  (fn [ctx]
@@ -340,9 +340,7 @@ the current context"
           :available-media-types ["application/edn"]
           :known-content-type?   known-content-type?
           :malformed?            malformed?
-          :processable?          (comp (validator (optionalize schema))
-                                       (fn [ctx]
-                                         (assoc-in ctx [::parsed-input :id] id)))
+          :processable?          (comp (validator (optionalize schema)) (with-id id))
           :exists?               (if-let [id (coerce-id schema id)]
                                    (find-by-id (d/db cnx) id [:entity]))
           :new?                  (fn [ctx]
