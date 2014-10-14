@@ -326,11 +326,9 @@ the current context"
           :processable?          (comp (validator schema) (with-id id))
           :exists?               (find-by-id db schema id)
           :new?                  entity-not-found?
-          :handle-not-found      (handle-not-found name id)
           :can-put-to-missing?   true
           :put!                  (creator! cnx refs)
           :handle-malformed      handle-malformed
-          :handle-ok             (handle-ok schema refs)
           :handle-created        (pr-str "Created.")
           :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
 
