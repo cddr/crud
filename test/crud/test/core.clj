@@ -73,19 +73,6 @@ HTTP method, that does corresponding thing on an underlying datomic database."
       (assert-valid (request :get {:foo 42}))
       (assert-valid (request :get {:bar "a string"})))))
 
-(deftest test-malformed?
-  (let [subject (r/malformed? [:raw-input] [:parsed-input])
-        request (fn [input]
-                  (assoc-in {} [:raw-input] input))]
-    (is (= [false {:parsed-input 42}] (subject (request (pr-str 42)))))
-    (is (= [false {:parsed-input {:name "linus", :email "torvalds@linux.com"}}]
-           (subject (request (pr-str {:name "linus", :email "torvalds@linux.com"})))))
-
-    (let [decision (subject (request "{:name}"))]
-      (is (= true (first decision)))
-      (is (submap? {:parser-error "Map literal must contain an even number of forms"}
-                   (second decision))))))
-
 (deftest test-redirector
   (let [redirect (r/redirector [:id])
         request (fn [input]

@@ -229,8 +229,9 @@ the current context"
         (validate-with (optionalize schema))
         (validate-with schema)))))
 
-(defn malformed? [input-path output-path]
-  (fn [ctx]
+(defn malformed? [ctx]
+  (let [input-path [:request :body]
+        output-path [::parsed-input]]
     (try
       (let [body-as-str (if-let [body (get-in ctx input-path)]
                           (condp instance? body
@@ -271,7 +272,7 @@ the current context"
           :available-media-types ["application/edn"]
           :allowed-methods       [:get :post]
           :known-content-type?   known-content-type?
-          :malformed?            (malformed? [:request :body] [::parsed-input])
+          :malformed?            malformed?
           :processable?          (validator schema
                                             [::parsed-input] [::valid-parsed-input] [::validation-error])
           :post!                 (creator! cnx [::valid-parsed-input] refs)
@@ -287,7 +288,7 @@ the current context"
           :allowed-methods              [:get :patch :put :delete]
           :available-media-types        ["application/edn"]
           :known-content-type?          known-content-type?
-          :malformed?                   (malformed? [:request :body] [::parsed-input])
+          :malformed?                   malformed?
           :processable?                 (comp (validator schema
                                                          [::parsed-input]
                                                          [::valid-parsed-input]
@@ -314,7 +315,7 @@ the current context"
           :allowed-methods       [:get :patch :put :delete]
           :available-media-types ["application/edn"]
           :known-content-type?   known-content-type?
-          :malformed?            (malformed? [:request :body] [::parsed-input])
+          :malformed?            malformed?
           :processable?          (comp (validator schema
                                                   [::parsed-input]
                                                   [::valid-parsed-input]
@@ -341,7 +342,7 @@ the current context"
           :allowed-methods       [:get :patch :put :delete]
           :available-media-types ["application/edn"]
           :known-content-type?   known-content-type?
-          :malformed?            (malformed? [:request :body] [::parsed-input])
+          :malformed?            malformed?
           :processable?          (comp (validator (optionalize schema)
                                                   [::parsed-input]
                                                   [::valid-parsed-input]
