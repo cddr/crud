@@ -312,15 +312,9 @@ the current context"
           :allowed-methods              [:get]
           :available-media-types        ["application/edn"]
           :known-content-type?          known-content-type?
-          :malformed?                   malformed?
-          :processable?                 (comp (validator schema) (with-id id))
           :exists?                      (find-by-id db schema id)
-          :new?                         entity-not-found?
           :handle-not-found             (handle-not-found name id)
-          :handle-malformed             handle-malformed
-          :handle-ok                    (handle-ok schema refs)
-          :handle-created               (pr-str "Created.")
-          :handle-unprocessable-entity  (comp schema.utils/error-val ::validation-error))))
+          :handle-ok                    (handle-ok schema refs))))
 
      (http/PUT "/:id" [id]
        (rest/resource

@@ -105,7 +105,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
     (is (submap? {:status 404, :body {:error "Could not find tweet with id: 666"}}
                  (api :get "/tweet/666" {} nil)))
 
-    (is (submap? {:status 422, :body {:id '(not (integer? nonsense))}}
+    (is (submap? {:status 404, :body {:error "Could not find tweet with id: nonsense"}}
                  (api :get "/tweet/nonsense" {} (pr-str {}))))
 
     (is (submap? {:status 400, :body {:error "EOF while reading"}}
