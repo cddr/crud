@@ -56,27 +56,6 @@ HTTP method, that does corresponding thing on an underlying datomic database."
      (r/as-facts (d/tempid :db.part/user) {:id 3, :body "Don't send crap like that to me again", :author author}
                  (:refs Tweet))]))
      
-  
-(deftest test-handler
-  (let [{:keys [cnx]} (test-db {:resources [User Tweet]
-                                :test-data (vec (reduce concat [] test-data))})]
-    (testing "fetch a collection of entities"
-      (let [h (r/handler (d/db cnx) :collection Tweet [:query])
-            query (fn [params]
-                    (h {:query {:author [:id 1]}}))
-            result (query {:author [:id 1]})]
-        (is (= 2 (count result)))
-        (is (every? #{"user/1"} (map :author result)))
-        (is (some #{"I'm gonna build an OS"} (map :body result)))))
-
-    (testing "fetch a single entity"
-      (let [h (r/handler (d/db cnx) :single User [:query])
-            query (fn [params]
-                    (h {:query params}))
-            result (query {:id 1})]
-        (is (= {:name "Linus", :email "linus@linux.com", :id 1}
-               result))))))
-
 (deftest test-get?
   (is (= true (r/get? {:request (client/request :get "/yolo")})))
   (is (= false (r/get? {:request (client/request :post "/yolo")}))))

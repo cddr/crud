@@ -255,8 +255,9 @@ the current context"
                   (:uri request)
                   (get-in ctx [::valid-parsed-input :id])))))
 
-(defn handler [db cardinality resource input-path]
+(defn handler [db cardinality resource]
   (let [{:keys [schema refs]} resource
+        input-path [::valid-parsed-input]
         handle (fn [e] (as-response e schema refs))]
     (fn [ctx]
       (let [entities (find-entities db (get-in ctx input-path))]
@@ -280,7 +281,7 @@ the current context"
           :post!                 (creator! cnx refs)
           :post-redirect         true
           :location              redirector
-          :handle-ok             (handler (d/db cnx) :collection definition [::valid-parsed-input])
+          :handle-ok             (handler (d/db cnx) :collection definition)
           :handle-created        (pr-str "Created.")
           :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
 
