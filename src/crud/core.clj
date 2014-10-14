@@ -273,9 +273,13 @@ the current context"
 (defn entity-not-found? [ctx]
   (not (:entity ctx)))
 
-(defn err [error]
+(defn handle-not-found [name id]
   (fn [ctx]
-    {:error (error ctx)}))
+    {:error (str "Could not find " name " with id: " id)}))
+
+(def handle-malformed
+  (fn [ctx]
+    {:error (:parser-error ctx)}))
 
 (defn api-routes [cnx definition]
   (let [{:keys [name schema uniqueness refs]} definition
@@ -308,10 +312,10 @@ the current context"
           :processable?                 (comp (validator schema) (with-id id))
           :exists?                      (find-by-id db schema id)
           :new?                         entity-not-found?
-          :handle-not-found             (err (constantly (str "Could not find " name " with id: " id)))
+          :handle-not-found             (handle-not-found name id)
           :can-put-to-missing?          true
           :put!                         (creator! cnx refs)
-          :handle-malformed             (err #(:parser-error %))
+          :handle-malformed             handle-malformed
           :handle-ok                    #(as-response (:entity %) schema refs)
           :handle-created               (pr-str "Created.")
           :handle-unprocessable-entity  (comp schema.utils/error-val ::validation-error))))
@@ -326,10 +330,10 @@ the current context"
           :processable?          (comp (validator schema) (with-id id))
           :exists?               (find-by-id db schema id)
           :new?                  entity-not-found?
-          :handle-not-found      (err (constantly (str "Could not find " name " with id: " id)))
+          :handle-not-found      (handle-not-found name id)
           :can-put-to-missing?   true
           :put!                  (creator! cnx refs)
-          :handle-malformed      (err #(:parser-error %))
+          :handle-malformed      handle-malformed
           :handle-ok             #(as-response (:entity %) schema refs)
           :handle-created        (pr-str "Created.")
           :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
@@ -344,10 +348,10 @@ the current context"
           :processable?          (comp (validator (optionalize schema)) (with-id id))
           :exists?               (find-by-id db schema id) 
           :new?                  entity-not-found?
-          :handle-not-found      (err (constantly (str "Could not find " name " with id: " id)))
+          :handle-not-found      (handle-not-found name id)
           :can-put-to-missing?   true
           :patch!                (creator! cnx refs)
-          :handle-malformed      (err #(:parser-error %))
+          :handle-malformed      handle-malformed
           :handle-ok             #(as-response (:entity %) schema refs)
           :handle-created        (pr-str "Created.")
           :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
@@ -360,5 +364,5 @@ the current context"
           :known-content-type?   known-content-type?
           :exists?               (find-by-id db schema id)
           :delete!               (destroyer! cnx)
-          :handle-not-found      (err (constantly (str "Could not find " name " with id: " id)))
+          :handle-not-found      (handle-not-found name id)
           :handle-no-content     (pr-str "Deleted.")))))))
