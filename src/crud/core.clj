@@ -288,7 +288,7 @@ the current context"
      (http/GET "/:id" [id]
        (rest/resource
         (with-overrides
-          :allowed-methods              [:get :patch :put :delete]
+          :allowed-methods              [:get]
           :available-media-types        ["application/edn"]
           :known-content-type?          known-content-type?
           :malformed?                   malformed?
@@ -312,7 +312,7 @@ the current context"
      (http/PUT "/:id" [id]
        (rest/resource
         (with-overrides
-          :allowed-methods       [:get :patch :put :delete]
+          :allowed-methods       [:put]
           :available-media-types ["application/edn"]
           :known-content-type?   known-content-type?
           :malformed?            malformed?
@@ -336,7 +336,7 @@ the current context"
      (http/PATCH "/:id" [id]
        (rest/resource
         (with-overrides
-          :allowed-methods       [:get :patch :put :delete]
+          :allowed-methods       [:patch]
           :available-media-types ["application/edn"]
           :known-content-type?   known-content-type?
           :malformed?            malformed?
@@ -360,7 +360,7 @@ the current context"
      (http/DELETE "/:id" [id]
        (rest/resource
         (with-overrides
-          :allowed-methods       [:get :patch :put :delete]
+          :allowed-methods       [:delete]
           :available-media-types ["application/edn"]
           :known-content-type?   known-content-type?
           :exists?               (if-let [id (coerce-id schema id)]
