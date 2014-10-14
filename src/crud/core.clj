@@ -270,6 +270,13 @@ the current context"
   (fn [ctx]
     (assoc-in ctx [::parsed-input :id] id)))
 
+(defn entity-not-found? [ctx]
+  (not (:entity ctx)))
+
+(defn err [error]
+  (fn [ctx]
+    {:error (error ctx)}))
+
 (defn api-routes [cnx definition]
   (let [{:keys [name schema uniqueness refs]} definition
         with-overrides (fn [& b] (merge (apply hash-map b) definition))
@@ -300,14 +307,11 @@ the current context"
           :malformed?                   malformed?
           :processable?                 (comp (validator schema) (with-id id))
           :exists?                      (find-by-id db schema id)
-          :new?                         (fn [ctx]
-                                          (not (:entity ctx)))
-          :handle-not-found             (fn [_]
-                                          {:error (str "Could not find " name " with id: " id)})
+          :new?                         entity-not-found?
+          :handle-not-found             (err (constantly (str "Could not find " name " with id: " id)))
           :can-put-to-missing?          true
           :put!                         (creator! cnx refs)
-          :handle-malformed             (fn [ctx]
-                                          {:error (:parser-error ctx)})
+          :handle-malformed             (err #(:parser-error %))
           :handle-ok                    #(as-response (:entity %) schema refs)
           :handle-created               (pr-str "Created.")
           :handle-unprocessable-entity  (comp schema.utils/error-val ::validation-error))))
@@ -321,14 +325,11 @@ the current context"
           :malformed?            malformed?
           :processable?          (comp (validator schema) (with-id id))
           :exists?               (find-by-id db schema id)
-          :new?                  (fn [ctx]
-                                   (not (:entity ctx)))
-          :handle-not-found      (fn [_]
-                                   {:error (str "Could not find " name " with id: " id)})
+          :new?                  entity-not-found?
+          :handle-not-found      (err (constantly (str "Could not find " name " with id: " id)))
           :can-put-to-missing?   true
           :put!                  (creator! cnx refs)
-          :handle-malformed      (fn [ctx]
-                                   {:error (:parser-error ctx)})
+          :handle-malformed      (err #(:parser-error %))
           :handle-ok             #(as-response (:entity %) schema refs)
           :handle-created        (pr-str "Created.")
           :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
@@ -342,14 +343,11 @@ the current context"
           :malformed?            malformed?
           :processable?          (comp (validator (optionalize schema)) (with-id id))
           :exists?               (find-by-id db schema id) 
-          :new?                  (fn [ctx]
-                                   (not (:entity ctx)))
-          :handle-not-found      (fn [_]
-                                   {:error (str "Could not find " name " with id: " id)})
+          :new?                  entity-not-found?
+          :handle-not-found      (err (constantly (str "Could not find " name " with id: " id)))
           :can-put-to-missing?   true
           :patch!                (creator! cnx refs)
-          :handle-malformed      (fn [ctx]
-                                   {:error (:parser-error ctx)})
+          :handle-malformed      (err #(:parser-error %))
           :handle-ok             #(as-response (:entity %) schema refs)
           :handle-created        (pr-str "Created.")
           :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
@@ -362,11 +360,5 @@ the current context"
           :known-content-type?   known-content-type?
           :exists?               (find-by-id db schema id)
           :delete!               (destroyer! cnx)
-          :handle-not-found      (fn [_]
-                                   {:error (str "Could not find " name " with id: " id)})
+          :handle-not-found      (err (constantly (str "Could not find " name " with id: " id)))
           :handle-no-content     (pr-str "Deleted.")))))))
-
-                               ;; :new?                (has-path? [::entity])
-
-                               ;; :delete!             (deleter! cnx [::entity])
-
