@@ -11,15 +11,21 @@ HTTP method, that does corresponding thing on an underlying datomic database."
             [ring.mock.request :as client]
             [ring.middleware.defaults :refer :all]
             [ring.middleware.format :refer [wrap-restful-format]]
+            [crypto.password.bcrypt :as password]
             [liberator.dev :as dev])
   (:import [java.net URI]))
+
+(defn encrypt [attr] (fn [params]
+                       (password/encrypt (attr params))))
 
 ;; TODO: write quick-check generators for these structures to make the code bullet-proof
 (def User
   {:name "user"
    :schema {:id Int
             :email Str
-            :name Str}
+            :name Str
+            :secret Str}
+   :writer [:id :email :name (encrypt :secret)]
    :uniqueness {:id :db.unique/identity}})
 
 (def Tweet
@@ -43,13 +49,12 @@ HTTP method, that does corresponding thing on an underlying datomic database."
   (let [schema {:msg Str
                 :author Int}
         refs [(r/build-ref User :author :id)]
-        entity {:msg "hello world"
-                :author {:id 1}}]
+        entity {:msg "hello world", :author {:id 1}}]
     (is (= {:author "user/1", :msg "hello world"} (r/as-response entity schema refs)))))
 
 (def test-data
   (let [[author] (test-ids 1)]
-    [(r/as-facts author {:id 1, :email "linus@linux.com", :name "Linus"}
+    [(r/as-facts author {:id 1, :email "linus@linux.com", :name "Linus", :secret "i can divide by 0"}
                  (:refs User))
      (r/as-facts (d/tempid :db.part/user) {:id 2, :body "I'm gonna build an OS", :author author}
                  (:refs Tweet))
@@ -111,25 +116,35 @@ HTTP method, that does corresponding thing on an underlying datomic database."
     (is (submap? {:status 400, :body {:error "EOF while reading"}}
                  (api :put "/tweet/42" {} "{syntax-error")))))
 
-(deftest test-post-then-get
+;; (deftest test-api-with-writer
+;;   (let [app (-> (test-app [User]))
+;;         api (comp (responder "application/edn")
+;;                   app
+;;                   (requestor "application/edn"))]
+;;     (testing 
+
+(deftest test-basic-api
   (let [app (-> (test-app [Tweet User] []))
         api (comp (responder "application/edn")
                   app
                   (requestor "application/edn"))]
     (testing "create with POST"
       (is (submap? {:status 201, :body "Created."}
-                   (api :post "/user" {} (pr-str {:id 1, :email "torvalds@linux.com", :name "Linus"})))))
+                   (api :post "/user" {} (pr-str {:id 1, :email "torvalds@linux.com",
+                                                  :name "Linus", :secret "i can divide by zero"})))))
 
     (testing "create with PUT"
       (is (submap? {:status 201, :body "Created."}
-                   (api :put "/user/2" {} (pr-str {:email "hicky@clojure.com", :name "Rich"})))))
+                   (api :put "/user/2" {} (pr-str {:email "hicky@clojure.com", :name "Rich",
+                                                   :secret "decomplect ftw"})))))
 
     (testing "create with POST and invalid body"
-      (is (submap? {:status 422 :body {:id 'missing-required-key}}
+      (is (submap? {:status 422 :body {:id 'missing-required-key :secret 'missing-required-key}}
                    (api :post "/user" {} (pr-str {:email "torvalds@linux.com", :name "Linus"})))))
 
     (testing "read with GET"
-      (is (submap? {:status 200 :body {:name "Linus", :email "torvalds@linux.com", :id 1}}
+      (is (submap? {:status 200 :body {:name "Linus", :email "torvalds@linux.com",
+                                       :id 1, :secret "i can divide by zero"}}
                    (api :get "/user/1" {} nil))))
 
     (testing "create with POST containing reference to other resource"
@@ -138,16 +153,19 @@ HTTP method, that does corresponding thing on an underlying datomic database."
                                                    :author "http://localhost:80/user/1"})))))
     (testing "update resource using PUT"
       (is (submap? {:status 204, :body nil}
-                   (api :put "/user/1" {} (pr-str {:email "torvalds@linux.com", :name "Linus Torvalds"}))))
-      (is (submap? {:status 200, :body {:id 1, :email "torvalds@linux.com", :name "Linus Torvalds"}}
+                   (api :put "/user/1" {} (pr-str {:email "torvalds@linux.com", :name "Linus Torvalds",
+                                                   :secret "i can divide by zero"}))))
+      (is (submap? {:status 200, :body {:id 1, :email "torvalds@linux.com", :name "Linus Torvalds"
+                                        :secret "i can divide by zero"}}
                    (api :get "/user/1" {} nil)))
-      (is (submap? {:status 422, :body {:email 'missing-required-key}}
+      (is (submap? {:status 422, :body {:email 'missing-required-key :secret 'missing-required-key}}
                    (api :put "/user/1" {} (pr-str {:name "Linus"})))))
 
     (testing "update resource using PATCH"
       (is (submap? {:status 204, :body nil}
                    (api :patch "/user/1" {} (pr-str {:name "Linus"}))))
-      (is (submap? {:status 200, :body {:id 1, :email "torvalds@linux.com", :name "Linus"}}
+      (is (submap? {:status 200, :body {:id 1, :email "torvalds@linux.com", :name "Linus",
+                                        :secret "i can divide by zero"}}
                    (api :get "/user/1" {} nil))))
 
     (testing "delete resource"
