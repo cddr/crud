@@ -1,4 +1,4 @@
-(in-ns 'crud.test.core)
+(in-ns 'crud.core-test)
 
 (defn path-prefix [resource] (str "/" (-> resource :name clojure.string/lower-case)))
 (defn submap?     [a b]      (clojure.set/subset? (set a) (set b)))
@@ -31,7 +31,8 @@
         meta (reduce keep-one-ident [] (vec (mapcat r/datomic-schema
                                                     (map :schema resources)
                                                     (map :uniqueness resources)
-                                                    (map :refs resources))))]
+                                                    (map :refs resources)
+                                                    (map :storable resources))))]
     (let [c (test-setup)]
       (tx c meta)
       (tx c test-data)
@@ -100,9 +101,8 @@
         meta (reduce keep-one-ident [] (into [] (mapcat r/datomic-schema
                                                         (map :schema resources)
                                                         (map :uniquness resources)
-                                                        (map :refs resources))))
+                                                        (map :refs resources)
+                                                        (map :storable resources))))
         data (r/as-facts test-data)]
     (-> (test-setup) (tx meta) (tx data))))
-
-
 

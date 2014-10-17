@@ -1,8 +1,10 @@
-(ns crud.test.core
+(ns crud.core-test
   "The aim here is to be the glue between HTTP resources and datomic persistence.
 To do that, we provide a function that returns a set of handlers, one for each
 HTTP method, that does corresponding thing on an underlying datomic database."
   (:require [clojure.test :refer :all]
+            [clojure.test.check.generators :as gen]
+            [clojure.test.check.properties :as prop]
             [schema.core :as s :refer [Str Bool Num Int Inst Keyword]]
             [datomic.api :as d]
             [integrity.datomic :as db]
@@ -15,8 +17,32 @@ HTTP method, that does corresponding thing on an underlying datomic database."
             [liberator.dev :as dev])
   (:import [java.net URI]))
 
-(defn encrypt [attr] (fn [params]
-                       (password/encrypt (attr params))))
+(def gen-schema
+  (let [id-type (gen/elements [Str Int])
+        gen-type (gen/elements [Str Bool Num Int Inst Keyword])]
+    (gen/fmap (fn [[id attrs]]
+                (merge id attrs))
+              (gen/tuple (gen/not-empty (gen/map (gen/return :id) id-type))
+                         (gen/not-empty (gen/map gen/keyword gen-type))))))
+
+(defn gen-uniqueness [schema]
+  (gen/map (gen/elements (keys schema))
+           (gen/elements [:db.unique/identity :db.unique/value])))
+
+(def gen-entity
+  (gen/bind gen-schema
+    (fn [schema]
+      (gen/bind (gen-uniqueness schema)
+        (fn [uniqueness]
+          (gen/hash-map
+           :name (gen/not-empty gen/string-alpha-numeric)
+           :schema (gen/return schema)
+           :storable (gen/not-empty (gen/vector (gen/elements (keys schema))))
+           :uniqueness (gen/return uniqueness)))))))
+
+(defn encrypt [attr]
+  ;; The 4 here is so we're not slowing our tests down. IRL you should use at least 10
+  {:name attr, :callable (fn [val] (password/encrypt val 4))})
 
 ;; TODO: write quick-check generators for these structures to make the code bullet-proof
 (def User
@@ -25,7 +51,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
             :email Str
             :name Str
             :secret Str}
-   :writer [:id :email :name (encrypt :secret)]
+   :storable [:id :email :name (encrypt :secret)]
    :uniqueness {:id :db.unique/identity}})
 
 (def Tweet
@@ -36,14 +62,24 @@ HTTP method, that does corresponding thing on an underlying datomic database."
    :uniqueness {:id :db.unique/identity}
    :refs [(r/build-ref User :author :id)]})
 
+(def StorageTest
+  {:name "storage-test"
+   :schema {:id Int
+            :attr Int
+            :ignored Int}
+   :storable [:id :attr]})
+
 (load "test_utils")
 
 (deftest test-datomic-schema
-  (let [{:keys [schema uniqueness refs]} Tweet
-        [id body author] (r/datomic-schema schema uniqueness refs)]
+  (let [{:keys [schema uniqueness refs storable]} Tweet
+        [id body author] (r/datomic-schema schema uniqueness refs storable)]
     (is (submap? {:db/unique :db.unique/identity, :db/ident :id, :db/valueType :db.type/long} id))
     (is (submap? {:db/ident :body, :db/valueType :db.type/string} body))
-    (is (submap? {:db/ident :author, :db/valueType :db.type/ref} author))))
+    (is (submap? {:db/ident :author, :db/valueType :db.type/ref} author)))
+
+  (let [{:keys [schema uniqueness refs storable]} StorageTest]
+    (is (= 2 (count (r/datomic-schema schema uniqueness refs storable))))))
 
 (deftest test-as-response
   (let [schema {:msg Str
@@ -60,7 +96,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
                  (:refs Tweet))
      (r/as-facts (d/tempid :db.part/user) {:id 3, :body "Don't send crap like that to me again", :author author}
                  (:refs Tweet))]))
-     
+
 (deftest test-get?
   (is (= true (r/get? {:request (client/request :get "/yolo")})))
   (is (= false (r/get? {:request (client/request :post "/yolo")}))))
@@ -68,10 +104,10 @@ HTTP method, that does corresponding thing on an underlying datomic database."
 (deftest test-build-ref
   (let [test-ref (r/build-ref User :author :id)]
     ;; Represents a situation where the :author attr is a reference to the :id attr of the User entity
-    (is (= User (:resource test-ref)))    
+    (is (= User (:resource test-ref)))
     (is (= :author (:referrer test-ref)))
     (is (= :id (:referent test-ref)))
-    
+
     (is (= "user/42" ((:as-response test-ref) {:author {:id 42}})))
     (is (= [:id 42] ((:as-lookup-ref test-ref) "user/42")))
     (is (= [:id 42] ((:as-lookup-ref test-ref) "http://example.com/user/42")))
@@ -101,7 +137,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
     (case mimetype
       "application/edn" (assoc response
                           :body (clojure.edn/read-string (:body response))))))
-  
+
 (deftest test-garbage-requests
   (let [app (-> (test-app [Tweet] []))
         api (comp (responder "application/edn")
@@ -116,12 +152,16 @@ HTTP method, that does corresponding thing on an underlying datomic database."
     (is (submap? {:status 400, :body {:error "EOF while reading"}}
                  (api :put "/tweet/42" {} "{syntax-error")))))
 
-;; (deftest test-api-with-writer
-;;   (let [app (-> (test-app [User]))
-;;         api (comp (responder "application/edn")
-;;                   app
-;;                   (requestor "application/edn"))]
-;;     (testing 
+(deftest test-api-with-writer
+  (let [app (-> (test-app [User] []))
+        api (comp (responder "application/edn")
+                  app
+                  (requestor "application/edn"))]
+    (testing "create with writer"
+      (api :post "/user" {} (pr-str {:id 1, :email "torvalds@linux.com",
+                                     :name "Linus", :secret "yolo"}))
+      (let [encrypted (:secret (:body (api :get "/user/1" {} nil)))]
+        (is (password/check "yolo" encrypted))))))
 
 (deftest test-basic-api
   (let [app (-> (test-app [Tweet User] []))
@@ -143,9 +183,10 @@ HTTP method, that does corresponding thing on an underlying datomic database."
                    (api :post "/user" {} (pr-str {:email "torvalds@linux.com", :name "Linus"})))))
 
     (testing "read with GET"
-      (is (submap? {:status 200 :body {:name "Linus", :email "torvalds@linux.com",
-                                       :id 1, :secret "i can divide by zero"}}
-                   (api :get "/user/1" {} nil))))
+      (let [response (api :get "/user/1" {} nil)]
+        (is (= 200 (:status response)))
+        (is (submap? {:name "Linus", :email "torvalds@linux.com", :id 1}
+                     (:body response)))))
 
     (testing "create with POST containing reference to other resource"
       (is (submap? {:status 201 :body "Created."}
@@ -155,18 +196,20 @@ HTTP method, that does corresponding thing on an underlying datomic database."
       (is (submap? {:status 204, :body nil}
                    (api :put "/user/1" {} (pr-str {:email "torvalds@linux.com", :name "Linus Torvalds",
                                                    :secret "i can divide by zero"}))))
-      (is (submap? {:status 200, :body {:id 1, :email "torvalds@linux.com", :name "Linus Torvalds"
-                                        :secret "i can divide by zero"}}
-                   (api :get "/user/1" {} nil)))
+      (let [response (api :get "/user/1" {} nil)]
+        (is (= 200 (:status response)))
+        (is (submap? {:id 1, :email "torvalds@linux.com", :name "Linus Torvalds"}
+                     (:body response))))
       (is (submap? {:status 422, :body {:email 'missing-required-key :secret 'missing-required-key}}
                    (api :put "/user/1" {} (pr-str {:name "Linus"})))))
 
     (testing "update resource using PATCH"
       (is (submap? {:status 204, :body nil}
                    (api :patch "/user/1" {} (pr-str {:name "Linus"}))))
-      (is (submap? {:status 200, :body {:id 1, :email "torvalds@linux.com", :name "Linus",
-                                        :secret "i can divide by zero"}}
-                   (api :get "/user/1" {} nil))))
+      (let [response (api :get "/user/1" {} nil)]
+        (is (= 200 (:status response)))
+        (is (submap? {:id 1, :email "torvalds@linux.com", :name "Linus"}
+                     (:body response)))))
 
     (testing "delete resource"
       (is (submap? {:status 204, :body "Deleted."}
@@ -187,7 +230,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
 
 ;; (deftest test-find-by-attr
 ;;   (let [api (mock-api-for {:resources [Tweet User]})]
-;;     (api :post "/user" {} {:id 1, :email "torvalds@linux.com", :name "Linus"})    
+;;     (api :post "/user" {} {:id 1, :email "torvalds@linux.com", :name "Linus"})
 ;;     (api :post "/tweet" {} {:id 101, :author 1, :body "hello world!"})
 
 ;;     (is (submap? {:status 200
@@ -198,7 +241,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
 
 ;; (deftest test-find-many
 ;;   (let [api (mock-api-for {:resources [Tweet User]})]
-;;     (api :post "/user" {} {:id 1, :email "torvalds@linux.com", :name "Linus"})    
+;;     (api :post "/user" {} {:id 1, :email "torvalds@linux.com", :name "Linus"})
 ;;     (api :post "/tweet" {} {:id 101, :author 1, :body "hello world!"})
 ;;     (api :post "/tweet" {} {:id 102, :author 1, :body "writing an OS, brb"})
 

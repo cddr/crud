@@ -1,3 +1,4 @@
+/docs
 /target
 /lib
 /classes
@@ -9,3 +10,4 @@ pom.xml.asc
 /.lein-*
 /.nrepl-port
 /.nrepl-history
+.DS_Store
