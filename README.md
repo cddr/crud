@@ -2,6 +2,7 @@
 
 [![Build Status](https://img.shields.io/travis/cddr/crud/master.svg)](https://travis-ci.org/cddr/crud)
 [![Documentation](http://img.shields.io/badge/documentation-latest-green.svg)](https://cddr.github.io/crud/uberdoc.html)
+[![Stories in Ready](https://badge.waffle.io/cddr/crud.png?label=ready&title=Ready)](https://waffle.io/cddr/crud)
 
 As a developer, I want to be able to describe a resource's high-level details
 like data data integrity, associations, documentation etc. and have a system
