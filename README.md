@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/cddr/crud.png?label=ready&title=Ready)](https://waffle.io/cddr/crud)
 # crud
 
 [![Build Status](https://img.shields.io/travis/cddr/crud/master.svg)](https://travis-ci.org/cddr/crud)
