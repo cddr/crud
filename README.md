@@ -1,5 +1,8 @@
 # crud
 
+[![Build Status](https://img.shields.io/travis/cddr/crud/master.svg)](https://travis-ci.org/cddr/crud)
+[![Documentation](http://img.shields.io/badge/documentation-latest-green.svg)](https://cddr.github.io/crud/uberdoc.html)
+
 As a developer, I want to be able to describe a resource's high-level details
 like data data integrity, associations, documentation etc. and have a system
 that builds a corresponding API and user interface so that I can focus on tooling
