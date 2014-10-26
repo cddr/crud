@@ -44,29 +44,28 @@ HTTP method, that does corresponding thing on an underlying datomic database."
   {:name attr, :callable (fn [val] (password/encrypt val 4))})
 
 ;; TODO: write quick-check generators for these structures to make the code bullet-proof
-(def User
-  {:name "user"
-   :schema {:id Int
-            :email Str
-            :name Str
-            :secret Str}
-   :storable [:id :email :name (encrypt :secret)]
-   :uniqueness {:id :db.unique/identity}})
 
-(def Tweet
-  {:name "tweet"
-   :schema {:id Int
-            :body Str
-            :author Str}
-   :uniqueness {:id :db.unique/identity}
-   :refs [(r/build-ref User :author :id)]})
 
-(def StorageTest
-  {:name "storage-test"
-   :schema {:id Int
-            :attr Int
-            :ignored Int}
-   :storable [:id :attr]})
+(r/defentity User
+  :schema {:id Int
+           :email Str
+           :name Str
+           :secret Str}
+  :storable [:id :email :name (encrypt :secret)]
+  :uniqueness {:id :db.unique/identity})
+
+(r/defentity Tweet
+  :schema {:id Int
+           :body Str
+           :author Str}
+  :uniqueness {:id :db.unique/identity}
+  :refs [(r/build-ref User :author :id)])
+
+(r/defentity StorageTest
+  :schema {:id Int
+           :attr Int
+           :ignored Int}
+  :storable [:id :attr])
 
 (load "test_utils")
 
