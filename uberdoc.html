@@ -2866,7 +2866,7 @@ net.brehaut.ClojureTools = (function (SH) {
   };
 })(SyntaxHighlighter);
 </script><title>crud -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="http://github.com/cddr/crud">crud</a></h1><h2 class="project-version">0.1.0-SNAPSHOT</h2><br /><p>Create, Read, Update, Delete. Done!</p>
-</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">cddr/integrity</td><td class="dotted"><hr /></td><td class="dep-version">0.3.1-SNAPSHOT</td></tr><tr><td class="dep-name">cheshire</td><td class="dotted"><hr /></td><td class="dep-version">5.3.1</td></tr><tr><td class="dep-name">clj-time</td><td class="dotted"><hr /></td><td class="dep-version">0.8.0</td></tr><tr><td class="dep-name">com.datomic/datomic-free</td><td class="dotted"><hr /></td><td class="dep-version">0.9.4899</td></tr><tr><td class="dep-name">compojure</td><td class="dotted"><hr /></td><td class="dep-version">1.1.9</td></tr><tr><td class="dep-name">crypto-password</td><td class="dotted"><hr /></td><td class="dep-version">0.1.3</td></tr><tr><td class="dep-name">crypto-password</td><td class="dotted"><hr /></td><td class="dep-version">0.1.3</td></tr><tr><td class="dep-name">liberator</td><td class="dotted"><hr /></td><td class="dep-version">0.12.2</td></tr><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.6.0</td></tr><tr><td class="dep-name">org.clojure/test.check</td><td class="dotted"><hr /></td><td class="dep-version">0.5.9</td></tr><tr><td class="dep-name">prismatic/schema</td><td class="dotted"><hr /></td><td class="dep-version">0.2.6</td></tr><tr><td class="dep-name">ring-middleware-format</td><td class="dotted"><hr /></td><td class="dep-version">0.4.0</td></tr><tr><td class="dep-name">ring/ring-defaults</td><td class="dotted"><hr /></td><td class="dep-version">0.1.2</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#crud.core">crud.core</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#crud.core" name="crud.core"><h1 class="project-name">crud.core</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Maps datomic attribute definitions to prismatic schemata
+</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">cddr/integrity</td><td class="dotted"><hr /></td><td class="dep-version">0.3.1-SNAPSHOT</td></tr><tr><td class="dep-name">cheshire</td><td class="dotted"><hr /></td><td class="dep-version">5.3.1</td></tr><tr><td class="dep-name">clj-time</td><td class="dotted"><hr /></td><td class="dep-version">0.8.0</td></tr><tr><td class="dep-name">com.datomic/datomic-free</td><td class="dotted"><hr /></td><td class="dep-version">0.9.4899</td></tr><tr><td class="dep-name">compojure</td><td class="dotted"><hr /></td><td class="dep-version">1.1.9</td></tr><tr><td class="dep-name">liberator</td><td class="dotted"><hr /></td><td class="dep-version">0.12.2</td></tr><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.6.0</td></tr><tr><td class="dep-name">org.clojure/test.check</td><td class="dotted"><hr /></td><td class="dep-version">0.5.9</td></tr><tr><td class="dep-name">prismatic/schema</td><td class="dotted"><hr /></td><td class="dep-version">0.2.6</td></tr><tr><td class="dep-name">ring-middleware-format</td><td class="dotted"><hr /></td><td class="dep-version">0.4.0</td></tr><tr><td class="dep-name">ring/ring-defaults</td><td class="dotted"><hr /></td><td class="dep-version">0.1.2</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#crud.core">crud.core</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#crud.core" name="crud.core"><h1 class="project-name">crud.core</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Maps datomic attribute definitions to prismatic schemata
 and vice versa</p>
 </td><td class="codes"><pre class="brush: clojure">(ns crud.core
   (:require [datomic.api :as d]
@@ -2951,12 +2951,20 @@ the current key</p>
 
 <p>http://docs.datomic.com/identity.html</p>
 
-<p>If <code>refs</code> is specified, it should be a sequence of attributes which
-represent references to other entities. For each ref, at attribute of type
-:db.type/ref will be generated.</p>
+<p><code>refs</code> should be a sequence of attributes which represent references
+to other entities. For each ref, at attribute of type :db.type/ref will
+be generated.</p>
+
+<p><code>storage-attrs</code> should be a sequence of attributes representing some sub-set
+of the attributes listed in <code>schema</code>. You can use a map in place of an
+attribute to perform a transform on that attribute before persisting it. If
+the value is a map, it should have <code>:name</code> and <code>:callable</code> attributes.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn datomic-schema
-  [schema uniqueness refs]
-  (letfn [(generate-ref [k v]
+  [schema uniqueness refs storage-attrs]
+  (letfn [(storable? [k]
+            (or (nil? storage-attrs)
+                (some #{k} (map #(if (map? %) (:name %) %) storage-attrs))))
+          (generate-ref [k v]
             (merge (generate-attr k v)
                    {:db/valueType :db.type/ref}))
           (generate-attr [k v]
@@ -2977,8 +2985,9 @@ represent references to other entities. For each ref, at attribute of type
              (branch? v)
              (into acc (conj (generate-attrs (into {} v))
                              ((:attr-factory dat/Ref) k)))
-             :else
-             (into acc [(generate-attr k v)])))
+             :else (if (storable? k)
+                     (into acc [(generate-attr k v)])
+                     acc)))
           (generate-attrs [schema]
             (reduce reducer [] (seq schema)))]
     (generate-attrs schema)))</pre></td></tr><tr><td class="docs"><p>Return the only item from a query result</p>
@@ -3146,7 +3155,7 @@ request will be persisted. If the value is a map, it should have :name and :call
 name is simply the name of the attribute to be saved, :callable is a function which may transform
 the value before persisting it to the database.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn api-routes
- [cnx entity]  
+ [cnx entity]
   (let [{:keys [name schema uniqueness refs]} entity
         with-overrides (fn [&amp; b] (merge (apply hash-map b) entity))
         db (d/db cnx)
