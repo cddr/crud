@@ -11,6 +11,11 @@ and vice versa"
             [ring.util.response :as resp])
   (:import [java.net URL URI]))
 
+(defmacro defentity [name & body]
+  `(def ~name
+     (merge {:name (clojure.string/lower-case (name '~name))}
+            (hash-map ~@body))))
+
 (defn find-referrer
   "Find the first referrer with the specified name in `refs`"
   [referrer refs]
