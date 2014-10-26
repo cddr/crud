@@ -267,19 +267,22 @@ the current context"
           (validate-with (optionalize schema))
           (validate-with schema))))))
 
-(defn malformed? [ctx]
+(defn malformed? [reader responder]
   "Parses the request body and puts the result in the context key `::parsed-input`"
-  (let [input-path [:request :body]
-        output-path [::parsed-input]]
-    (try
-      (let [body-as-str (if-let [body (get-in ctx input-path)]
-                          (condp instance? body
-                            java.lang.String body
-                            (slurp (clojure.java.io/reader body))))]
-        [false (assoc-in {} output-path (clojure.edn/read-string body-as-str))])
-      (catch RuntimeException e
-        [true {:representation {:media-type "application/edn"}
-               :parser-error (.getLocalizedMessage e)}]))))
+  (fn [ctx]
+    (let [input-path [:request :body]
+          output-path [::parsed-input]]
+      (try
+        (let [body-as-str (if-let [body (get-in ctx input-path)]
+                            (condp instance? body
+                              java.lang.String body
+                              (slurp (clojure.java.io/reader body))))]
+          [false (assoc-in {} output-path (reader body-as-str))])
+        (catch RuntimeException e
+          [true {:representation {:media-type responder}
+                 :parser-error (.getLocalizedMessage e)}])))))
+
+(def edn-malformed? (malformed? clojure.edn/read-string "application/edn"))
 
 (defn redirector [ctx]
   "Used in POST requests to support replying with the location of a created resource"
@@ -356,7 +359,7 @@ the value before persisting it to the database.
           :available-media-types ["application/edn"]
           :allowed-methods       [:get :post]
           :known-content-type?   known-content-type?
-          :malformed?            malformed?
+          :malformed?            edn-malformed?
           :processable?          (validator schema)
           :post!                 (creator! cnx refs storable)
           :post-redirect         true
@@ -381,7 +384,7 @@ the value before persisting it to the database.
           :allowed-methods       [:put]
           :available-media-types ["application/edn"]
           :known-content-type?   known-content-type?
-          :malformed?            malformed?
+          :malformed?            edn-malformed?
           :processable?          (comp (validator schema) (with-id id))
           :exists?               (find-by-id db schema id)
           :new?                  entity-not-found?
@@ -397,7 +400,7 @@ the value before persisting it to the database.
           :allowed-methods       [:patch]
           :available-media-types ["application/edn"]
           :known-content-type?   known-content-type?
-          :malformed?            malformed?
+          :malformed?            edn-malformed?
           :processable?          (comp (validator (optionalize schema)) (with-id id))
           :exists?               (find-by-id db schema id) 
           :handle-not-found      (handle-not-found name id)
