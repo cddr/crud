@@ -12,7 +12,6 @@ HTTP method, that does corresponding thing on an underlying datomic database."
             [compojure.core :as c]
             [ring.mock.request :as client]
             [ring.middleware.defaults :refer :all]
-            [ring.middleware.format :refer [wrap-restful-format]]
             [crypto.password.bcrypt :as password]
             [liberator.dev :as dev])
   (:import [java.net URI]))
