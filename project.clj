@@ -2,7 +2,7 @@
   :description "Create, Read, Update, Delete. Done!"
   :url "http://github.com/cddr/crud"
   :min-lein-version "2.0.0"
-  :dependencies [[cddr/integrity "0.3.1-SNAPSHOT"]
+  :dependencies [[cddr/integrity "0.3.1-20141004.001913-1" :exclusions [org.clojure/clojure]]
                  [clj-time "0.8.0"]
                  [com.datomic/datomic-free "0.9.4899"]
                  [compojure "1.1.9"]
