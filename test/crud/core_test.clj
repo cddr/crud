@@ -3,8 +3,6 @@
 To do that, we provide a function that returns a set of handlers, one for each
 HTTP method, that does corresponding thing on an underlying datomic database."
   (:require [clojure.test :refer :all]
-            [clojure.test.check.generators :as gen]
-            [clojure.test.check.properties :as prop]
             [schema.core :as s :refer [Str Bool Num Int Inst Keyword]]
             [datomic.api :as d]
             [integrity.datomic :as db]
@@ -15,29 +13,6 @@ HTTP method, that does corresponding thing on an underlying datomic database."
             [crypto.password.bcrypt :as password]
             [liberator.dev :as dev])
   (:import [java.net URI]))
-
-(def gen-schema
-  (let [id-type (gen/elements [Str Int])
-        gen-type (gen/elements [Str Bool Num Int Inst Keyword])]
-    (gen/fmap (fn [[id attrs]]
-                (merge id attrs))
-              (gen/tuple (gen/not-empty (gen/map (gen/return :id) id-type))
-                         (gen/not-empty (gen/map gen/keyword gen-type))))))
-
-(defn gen-uniqueness [schema]
-  (gen/map (gen/elements (keys schema))
-           (gen/elements [:db.unique/identity :db.unique/value])))
-
-(def gen-entity
-  (gen/bind gen-schema
-    (fn [schema]
-      (gen/bind (gen-uniqueness schema)
-        (fn [uniqueness]
-          (gen/hash-map
-           :name (gen/not-empty gen/string-alpha-numeric)
-           :schema (gen/return schema)
-           :storable (gen/not-empty (gen/vector (gen/elements (keys schema))))
-           :uniqueness (gen/return uniqueness)))))))
 
 (defn encrypt [attr]
   ;; The 4 here is so we're not slowing our tests down. IRL you should use at least 10
