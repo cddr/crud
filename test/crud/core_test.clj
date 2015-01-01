@@ -11,7 +11,8 @@ HTTP method, that does corresponding thing on an underlying datomic database."
             [ring.mock.request :as client]
             [ring.middleware.defaults :refer :all]
             [crypto.password.bcrypt :as password]
-            [liberator.dev :as dev])
+            [liberator.dev :as dev]
+            [environ.core :refer [env]])
   (:import [java.net URI]))
 
 (defn encrypt [attr]

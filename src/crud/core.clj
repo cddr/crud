@@ -8,8 +8,11 @@ and vice versa"
             [compojure.core :as http]
             [compojure.route :as route]
             [liberator.core :as rest :refer [by-method]]
-            [ring.util.response :as resp])
+            [ring.util.response :as resp]
+            [environ.core :refer [env]])
   (:import [java.net URL URI]))
+
+(def crud-db-uri (env :crud-db-uri))
 
 (defmacro defentity [name & body]
   `(def ~name

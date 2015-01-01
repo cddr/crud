@@ -17,10 +17,13 @@
                  ;; data modelling
                  [cddr/integrity "0.3.1-20141004.001913-1" :exclusions [org.clojure/clojure]]
                  [clj-time "0.8.0"]
-                 [prismatic/schema "0.2.6"]]
-  :plugins [[lein-ring "0.8.12"]]
+                 [prismatic/schema "0.2.6"]
+                 [environ "1.0.0"]]
+  :plugins [[lein-ring "0.8.12"]
+            [lein-environ "1.0.0"]]
   :ring {:handler crud.handler/app}
   :profiles
-  {:dev {:dependencies [[javax.servlet/servlet-api "2.5"]
+  {:dev {:env {:crud-db-uri "mem://crud-db-uri"}
+         :dependencies [[javax.servlet/servlet-api "2.5"]
                         [crypto-password "0.1.3"]
                         [ring-mock "0.1.5"]]}})
