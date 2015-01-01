@@ -23,7 +23,7 @@
             [lein-environ "1.0.0"]]
   :ring {:handler crud.handler/app}
   :profiles
-  {:dev {:env {:crud-db-uri "mem://crud-db-uri"}
+  {:dev {:env {:crud-db-uri "datomic:mem://crud-db-uri"}
          :dependencies [[javax.servlet/servlet-api "2.5"]
                         [crypto-password "0.1.3"]
                         [ring-mock "0.1.5"]]}})

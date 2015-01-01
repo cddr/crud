@@ -12,8 +12,6 @@ and vice versa"
             [environ.core :refer [env]])
   (:import [java.net URL URI]))
 
-(def crud-db-uri (env :crud-db-uri))
-
 (defmacro defentity [name & body]
   `(def ~name
      (merge {:name (clojure.string/lower-case (name '~name))}
@@ -426,3 +424,30 @@ the value before persisting it to the database.
           :delete!               (destroyer! cnx)
           :handle-not-found      (handle-not-found name id)
           :handle-no-content     (pr-str "Deleted.")))))))
+
+(defn crud-app [resources seed-data]
+  (let [uri (env :crud-db-uri)
+        db (do
+             (d/create-database uri)
+             (d/connect uri))
+        keep-one-ident (fn [acc next]
+                         (if (some #(= (:db/ident %)
+                                       (:db/ident next)) acc)
+                           acc
+                           (conj acc next)))
+        path-prefix (fn [resource] (str "/" (-> resource :name clojure.string/lower-case)))]
+
+    ;; ensure schema exists for resources
+    @(d/transact db (reduce keep-one-ident []
+                            (vec (apply mapcat datomic-schema
+                                        (map #(map % resources)
+                                             [:schema :uniqueness :refs :storable])))))
+
+    ;; load seed-data
+    (if-not (empty? seed-data)
+      @(d/transact db (into [] (reduce concat [] seed-data))))
+
+    ;; generate http routes
+    (apply http/routes (map #(http/context (path-prefix %) []
+                               (api-routes db %))
+                            resources))))

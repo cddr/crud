@@ -113,7 +113,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
                           :body (clojure.edn/read-string (:body response))))))
 
 (deftest test-garbage-requests
-  (let [app (-> (test-app [Tweet] []))
+  (let [app (-> (r/crud-app [Tweet] []))
         api (comp (responder "application/edn")
                   app
                   (requestor "application/edn"))]
@@ -127,7 +127,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
                  (api :put "/tweet/42" {} "{syntax-error")))))
 
 (deftest test-api-with-writer
-  (let [app (-> (test-app [User] []))
+  (let [app (-> (r/crud-app [User] []))
         api (comp (responder "application/edn")
                   app
                   (requestor "application/edn"))]
@@ -138,7 +138,7 @@ HTTP method, that does corresponding thing on an underlying datomic database."
         (is (password/check "yolo" encrypted))))))
 
 (deftest test-basic-api
-  (let [app (-> (test-app [Tweet User] []))
+  (let [app (-> (r/crud-app [Tweet User] []))
         api (comp (responder "application/edn")
                   app
                   (requestor "application/edn"))]
