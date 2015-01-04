@@ -117,14 +117,18 @@ HTTP method, that does corresponding thing on an underlying datomic database."
         api (comp (responder "application/edn")
                   app
                   (requestor "application/edn"))]
-    (is (submap? {:status 404, :body {:error "Could not find tweet with id: 666"}}
-                 (api :get "/tweet/666" {} nil)))
 
-    (is (submap? {:status 404, :body {:error "Could not find tweet with id: nonsense"}}
-                 (api :get "/tweet/nonsense" {} (pr-str {}))))
+    (let [response (api :get "/tweet/666" {} nil)]
+      (is (not-found? response))
+      (is (error? response "Could not find tweet with id: 666")))
 
-    (is (submap? {:status 400, :body {:error "EOF while reading"}}
-                 (api :put "/tweet/42" {} "{syntax-error")))))
+    (let [response (api :get "/tweet/nonsense" {} (pr-str {}))]
+      (is (not-found? response))
+      (is (error? response "Could not find tweet with id: nonsense")))
+
+    (let [response (api :put "/tweet/42" {} "{syntax-error")]
+      (is (bad-request? response))
+      (is (error? response "EOF while reading")))))
 
 (deftest test-api-with-writer
   (let [app (-> (r/crud-app [User] []))
@@ -134,8 +138,10 @@ HTTP method, that does corresponding thing on an underlying datomic database."
     (testing "create with writer"
       (api :post "/user" {} (pr-str {:id 1, :email "torvalds@linux.com",
                                      :name "Linus", :secret "yolo"}))
-      (let [encrypted (:secret (:body (api :get "/user/1" {} nil)))]
-        (is (password/check "yolo" encrypted))))))
+      (let [response (api :get "/user/1" {} nil)]
+        (is (ok? response))
+        (let [secret (get-in response [:body :secret])]
+          (is (password/check "yolo" secret)))))))
 
 (deftest test-basic-api
   (let [app (-> (r/crud-app [Tweet User] []))
