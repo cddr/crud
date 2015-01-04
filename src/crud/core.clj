@@ -205,7 +205,7 @@ the current context"
                           ((comp referent referrer) entity)))
    :as-lookup-ref (fn [uri]
                     (let [[_ id] (take-last 2 (clojure.string/split (.getPath (URI. uri)) #"/"))
-                          coerce (coercer (apply hash-map (find (:schema resource) referent))
+                          coerce (coercer (select-keys (:schema resource) [referent])
                                           string-coercion-matcher)]
                       [referent (referent (coerce {referent id}))]))})
       
