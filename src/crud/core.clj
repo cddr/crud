@@ -71,7 +71,8 @@ via the :as-response key of the corresponding ref"
 
 For any values that are themselves maps, we recur on the map and add a ref for
 the current key"
-  ([tmp-id object refs]
+  ([tmp-id object entity]
+   (let [refs (:refs entity)]
      (reduce (fn [acc [k v]]
                (if (branch? v)
                  (into acc (let [ref-id (d/tempid :db.part/user)
@@ -84,10 +85,10 @@ the current key"
                                                   ((:as-lookup-ref ref) v))
                                                 v)]])))
              []
-             (seq object)))
+             (seq object))))
   ([objects]
      (mapcat (fn [obj]
-               (as-facts (d/tempid :db.part/user) obj []))
+               (as-facts (d/tempid :db.part/user) obj {}))
              objects)))
 
 (defn apply-tx
@@ -254,11 +255,12 @@ the current context"
                         [attr (attr object)]))]
     (reduce reducer {} (map attr-reader attrs))))
 
-(defn creator! [c refs storable-attrs]
+(defn creator! [c entity]
   (fn [ctx]
-    (apply-tx c (as-facts (d/tempid :db.part/user)
-                          (storable (get-in ctx [::valid-parsed-input]) storable-attrs)
-                          refs))))
+    (let [value (get-in ctx [::valid-parsed-input])]
+      (apply-tx c (as-facts (d/tempid :db.part/user)
+                            (storable value (:storable entity))
+                            entity)))))
 
 (defn destroyer! [c]
   (fn [ctx]
@@ -378,7 +380,7 @@ the value before persisting it to the database.
           :known-content-type?   known-content-type?
           :malformed?            edn-malformed?
           :processable?          (validator schema)
-          :post!                 (creator! cnx refs storable)
+          :post!                 (creator! cnx entity)
           :post-redirect         true
           :location              redirector
           :handle-ok             (handler db :collection entity)
@@ -406,7 +408,7 @@ the value before persisting it to the database.
           :exists?               (find-by-id db schema id)
           :new?                  entity-not-found?
           :can-put-to-missing?   true
-          :put!                  (creator! cnx refs storable)
+          :put!                  (creator! cnx entity)
           :handle-malformed      handle-malformed
           :handle-created        (pr-str "Created.")
           :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
@@ -421,7 +423,7 @@ the value before persisting it to the database.
           :processable?          (comp (validator (optionalize schema)) (with-id id))
           :exists?               (find-by-id db schema id) 
           :handle-not-found      (handle-not-found name id)
-          :patch!                (creator! cnx refs storable)
+          :patch!                (creator! cnx entity)
           :handle-malformed      handle-malformed
           :handle-unprocessable-entity (comp schema.utils/error-val ::validation-error))))
      
