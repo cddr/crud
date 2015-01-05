@@ -10,7 +10,7 @@
          name (:name entity)]
     (format "/%s/%s" name (:id value))))
 
-(defmulti as-response #(:db %))
+(defmulti as-response #(:db-type %))
 
 ;; (defn as-lookup-ref [entity referent uri]
 ;;   (let [id (.getName (File. (.getPath uri)))

@@ -6,7 +6,7 @@
 
 (defn mock-resource [name & {:keys [schema]}]
   (fn [value]
-    {:db :test
+    {:db-type :test
      :entity {:name name
               :schema schema}
      :value value}))

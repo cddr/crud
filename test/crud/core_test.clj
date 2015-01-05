@@ -7,41 +7,13 @@ HTTP method, that does corresponding thing on an underlying datomic database."
             [datomic.api :as d]
             [integrity.datomic :as db]
             [crud.core :as r]
+            [crud.test-entities :refer :all]
             [compojure.core :as c]
             [ring.mock.request :as client]
             [ring.middleware.defaults :refer :all]
             [crypto.password.bcrypt :as password]
-            [liberator.dev :as dev]
             [environ.core :refer [env]])
   (:import [java.net URI]))
-
-(defn encrypt [attr]
-  ;; The 4 here is so we're not slowing our tests down. IRL you should use at least 10
-  {:name attr, :callable (fn [val] (password/encrypt val 4))})
-
-;; TODO: write quick-check generators for these structures to make the code bullet-proof
-
-
-(r/defentity User
-  :schema {:id Int
-           :email Str
-           :name Str
-           :secret Str}
-  :storable [:id :email :name (encrypt :secret)]
-  :uniqueness {:id :db.unique/identity})
-
-(r/defentity Tweet
-  :schema {:id Int
-           :body Str
-           :author Str}
-  :uniqueness {:id :db.unique/identity}
-  :refs [(r/build-ref User :author :id)])
-
-(r/defentity StorageTest
-  :schema {:id Int
-           :attr Int
-           :ignored Int}
-  :storable [:id :attr])
 
 (load "test_utils")
 
