@@ -34,14 +34,17 @@ HTTP method, that does corresponding thing on an underlying datomic database."
         entity {:msg "hello world", :author {:id 1}}]
     (is (= {:author "user/1", :msg "hello world"} (r/as-response entity schema refs)))))
 
-(def test-data
-  (let [[author] (test-ids 1)]
-    [(r/as-facts author {:id 1, :email "linus@linux.com", :name "Linus", :secret "i can divide by 0"}
-                 (:refs User))
-     (r/as-facts (d/tempid :db.part/user) {:id 2, :body "I'm gonna build an OS", :author author}
-                 (:refs Tweet))
-     (r/as-facts (d/tempid :db.part/user) {:id 3, :body "Don't send crap like that to me again", :author author}
-                 (:refs Tweet))]))
+(deftest test-make-fact
+  (let [id (d/tempid :db.part/user)
+        user (partial r/make-fact Tweet id)]
+
+    ;; standard key/value just spliced into a datomic datom
+    (is (= [[:db/add id :body "hello world"]]
+           (user :body "hello world")))
+
+    ;; for refs, we generate datomic lookup-refs
+    (is (= [[:db/add id :author [:id 42]]]
+           (user :author "/author/42")))))
 
 (deftest test-get?
   (is (= true (r/get? {:request (client/request :get "/yolo")})))

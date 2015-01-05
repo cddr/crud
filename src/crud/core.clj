@@ -53,6 +53,17 @@ via the :as-response key of the corresponding ref"
                     schema))]
     (walk-entity entity (seq schema))))
 
+(defn make-fact [entity tmp-id k v]
+  (let [value (if-let [ref (find-referrer k (:refs entity))]
+                ;; k,v represents a reference to another entity so generate
+                ;; a lookup-ref
+                (condp instance? v
+                  datomic.db.DbId v
+                  ((:as-lookup-ref ref) v))
+                
+                ;; k,v represent an entity "leaf" value so just use v
+                v)]
+    [[:db/add tmp-id k value]]))
 
 (defn as-facts
   "Generates datomic facts by recursively walking the specified map converting
