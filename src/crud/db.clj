@@ -2,7 +2,8 @@
   (:require [datomic.api :as d]
             [clojure.walk]
             [integrity.datomic :as dat] ; import this dependency?
-            [schema.core :as s :refer [Str Num Inst Int Bool Keyword]])
+            [schema.core :as s :refer [Str Num Inst Int Bool Keyword]]
+            [clojure.tools.trace :refer [trace]])
   (:import [java.net URL URI]))
 
 (defn db-dispatch [db & args]
@@ -10,9 +11,6 @@
 
 (defmulti has-attr? db-dispatch)
 (defmulti find-by-id db-dispatch)
-
-
-            
 
 (def ^{:private true} type-map
   {Str                      :db.type/string
@@ -26,10 +24,14 @@
 
    URI                      :db.type/string})
 
+
 (defn- find-referrer
   "Find the first referrer with the specified name in `refs`"
   [referrer refs]
-  (some #(= (:referrer %) referrer) refs))
+  (let [referrer= (fn [ref]
+                    (if (= (:referrer ref) referrer)
+                      ref))]
+    (some referrer= refs)))
 
 (defn- branch?
   "Return true if `v` has sub-elements"
@@ -92,6 +94,18 @@ the value is a map, it should have `:name` and `:callable` attributes."
           (generate-attrs [schema]
             (reduce reducer [] (seq schema)))]
     (generate-attrs schema)))
+
+(defn make-fact [entity tmp-id k v]
+  (let [value (if-let [ref (find-referrer k (:refs entity))]
+                ;; k,v represents a reference to another entity so generate
+                ;; a lookup-ref
+                (condp instance? v
+                  datomic.db.DbId v
+                  ((:as-lookup-ref ref) v))
+                
+                ;; k,v represent an entity "leaf" value so just use v
+                v)]
+    [[:db/add tmp-id k value]]))
 
 ;;   (ensure-schema [db entities]
 ;;     "Ensure a schema exists on the connected DB for the specified entities")

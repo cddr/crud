@@ -9,6 +9,7 @@ and vice versa"
             [compojure.route :as route]
             [liberator.core :as rest :refer [by-method]]
             [ring.util.response :as resp]
+            [clojure.tools.trace :refer [trace]]
             [environ.core :refer [env]])
   (:import [java.net URL URI]))
 
@@ -20,7 +21,9 @@ and vice versa"
 (defn find-referrer
   "Find the first referrer with the specified name in `refs`"
   [referrer refs]
-  (first (filter #(= (:referrer %) referrer) refs)))
+  (->> refs
+       (filter #(= (:referrer %) referrer))
+       first))
 
 (defn find-entities
   "Find all entities in `db` where the predicates specified by `params` are true" 
@@ -217,8 +220,9 @@ the current context"
                           ((comp referent referrer) entity)))
    :as-lookup-ref (fn [uri]
                     (let [[_ id] (take-last 2 (clojure.string/split (.getPath (URI. uri)) #"/"))
-                          coerce (coercer (select-keys (:schema resource) [referent])
-                                          string-coercion-matcher)]
+                          schema (:schema resource)
+                          ref-schema (select-keys schema [referent])
+                          coerce (coercer ref-schema string-coercion-matcher)]
                       [referent (referent (coerce {referent id}))]))})
       
 (defn optionalize

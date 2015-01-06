@@ -34,18 +34,6 @@ HTTP method, that does corresponding thing on an underlying datomic database."
         entity {:msg "hello world", :author {:id 1}}]
     (is (= {:author "user/1", :msg "hello world"} (r/as-response entity schema refs)))))
 
-(deftest test-make-fact
-  (let [id (d/tempid :db.part/user)
-        user (partial r/make-fact Tweet id)]
-
-    ;; standard key/value just spliced into a datomic datom
-    (is (= [[:db/add id :body "hello world"]]
-           (user :body "hello world")))
-
-    ;; for refs, we generate datomic lookup-refs
-    (is (= [[:db/add id :author [:id 42]]]
-           (user :author "/author/42")))))
-
 (deftest test-get?
   (is (= true (r/get? {:request (client/request :get "/yolo")})))
   (is (= false (r/get? {:request (client/request :post "/yolo")}))))
