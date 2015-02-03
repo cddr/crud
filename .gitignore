@@ -11,3 +11,4 @@ pom.xml.asc
 /.nrepl-port
 /.nrepl-history
 .DS_Store
+/profiles.clj

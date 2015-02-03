@@ -11,6 +11,7 @@
 
                  ;; http api
                  [compojure "1.1.9"]
+                 [bidi "1.12.0"]
                  [liberator "0.12.2"]
                  [ring/ring-defaults "0.1.2"]
 
