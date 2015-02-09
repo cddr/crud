@@ -9,10 +9,6 @@
   (invoke
     [this method uri body]))
 
-(defn uri-for [path]
-  (let [req (mock/request :get "/")]
-    (URI. 
-
 (defn location [client]
   (get-in (current client) [:headers "Location"]))
 

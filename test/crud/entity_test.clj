@@ -51,20 +51,19 @@
 (deftest test-storable
   (testing "default case"
     (is (= {:a 1, :b 10}
-           (storable nil {:a 1, :b 10}))))
+           (storable-value (entity "yolo" {}) {:a 1, :b 10}))))
 
   (testing "remove non-storable entries"
     (is (= {:a 1}
-           (storable {:storable [:a]}
+           (storable-value (entity "yolo" {:storable [:a]})
                      {:a 1, :b 10}))))
 
   (testing "transform using storage agents"
     (let [double-agent (fn [attr]
                          {:name attr, :callable (fn [val]
-                                                  (clojure.tools.trace/trace val)
                                                   (* 2 (attr val)))})]
       (is (= {:a 2}
-             (storable {:storable [(double-agent :a)]}
+             (storable-value (entity "yolo" {:storable [(double-agent :a)]})
                        {:a 1}))))))
 
 (deftest test-link

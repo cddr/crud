@@ -1,8 +1,8 @@
 (ns crud.db-test
   (:require [clojure.test :refer :all]
-            [crud.resource :refer :all]
             [crud.entity :refer :all]
             [schema.core :as s :refer [Str Num Inst Int Bool Keyword]]
+            [crud.db :refer [crud-db has-attr?]]
             [crud.db.datomic :refer [facts-for entity-attributes]]
             [datomic.api :as d]
             [environ.core :refer [env]]

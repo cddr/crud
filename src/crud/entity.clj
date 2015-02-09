@@ -109,7 +109,7 @@
       (if (:storable entity)
         (->> (:storable entity)
              (map storage-agent)
-             (mapcat (comp clojure.tools.trace/trace extract))
+             (mapcat extract)
              (apply hash-map))
         value)))
 
@@ -119,6 +119,9 @@
                     (if (= (:from link) name)
                       link))]
       (some matched links))))
+
+(defn entity [name options]
+  (map->Entity (merge {:name name} options)))
 
 (defmacro defentity
   "Defines an entity
@@ -196,7 +199,7 @@
                                                  :rel "self"})
                       (publish-link :collection {:entity (:name entity)
                                                  :rel "create"})]
-                     (->> (filter pred (clojure.tools.trace/trace (find-by db {:entity entity-name})))
+                     (->> (filter pred (find-by db {:entity entity-name}))
                           (map itemize)))}))
 
 (defn resource-links [db entity value]

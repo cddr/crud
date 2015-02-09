@@ -35,48 +35,6 @@
     {:db db
      :server (hypercrud {:db db, :entities entities})}))
 
-(deftest test-linked-entities
-  (testing "with employee/department fixtures"
-    (let [{:keys [db server]} (test-fixture [Department Employee])
-          dept-client (hyperclient "/Department" server)
-          emp-client (hyperclient "/Employee" server)]
-      (let [payroll (do (follow dept-client (->> (links dept-client)
-                                                 (filter (rel= "create"))
-                                                 first)
-                                {:method :post
-                                 :body {:id 1, :name "payroll"}}))]
-        (current dept-client)))
-            
-
-        ;;                 (when (= 201 (status dept-client))
-        ;;                   (location dept-client)))]
-        ;; (is (not (nil? payroll)))
-
-        ;; (let [john (do (follow emp-client (->> (links emp-client)
-        ;;                                        (filter (rel= "create"))
-        ;;                                        first)
-        ;;                        {:method :post
-        ;;                         :body {:id 2, :name "john"
-        ;;                                :_links [{:rel "department"
-        ;;                                          :href payroll}]}})
-        ;;                (current emp-client))]
-        ;;   john)))
-
-;;         (current dept-client)))
-        ;;                 )]
-        ;; payroll))
-            
-        ;;     john ]
-        ;; john))
-                     
-        
-
-;;       (follow emp-client (->> (links client)
-;;                               (
-;;       (follow-redirect client)
-;;       (follow-collection client)
-;;       (current client))
-
 (deftest test-create-with-component
   (testing "with cart fixture"
     (let [{:keys [db server]} (test-fixture [Cart])

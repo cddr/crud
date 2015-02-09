@@ -7,10 +7,8 @@
             [bidi.ring :refer [make-handler]]
             [crud.machine :refer :all]
             [crud.entity :refer [routes publish-link]]
-            [liberator.core :refer [resource by-method]]
+            [liberator.core :refer [resource by-method]]))
             
-            [clojure.tools.trace :refer [trace]]))
-
 (defn find-entity [app-spec req]
   (let [found? (fn [entity]
                  (= (-> req :route-params :entity))

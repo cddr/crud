@@ -39,8 +39,6 @@
 (defn created-location [entity ctx]
   (let [value (:entity ctx)]
 
-    (clojure.tools.trace/trace "val" value)
-
     (bidi.bidi/path-for routes :resource
                         :entity (:name entity)
                         :id (str (:id value)))))

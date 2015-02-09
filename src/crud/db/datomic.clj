@@ -6,8 +6,7 @@
             [clojure.walk]
             [integrity.datomic :as dat] ; import this dependency?
             [schema.core :as s :refer [Str Num Inst Int Bool Keyword]]
-            [clojure.walk :as walk]
-            [clojure.tools.trace :refer [trace trace-vars]])
+            [clojure.walk :as walk])
   (:import [java.net URL URI]))
 
 (def ^{:private true} type-map
@@ -84,7 +83,6 @@ agents which are just maps with :name and :callable keys"
                        {:entity (:name entity)})
           links (get value :_links)
           make-link (fn [lnk]
-                      (trace "lnk" lnk)
                       (locate (:href lnk) (:rel lnk)))]
       (merge props
              (->> links
@@ -106,11 +104,10 @@ agents which are just maps with :name and :callable keys"
         :db.install/_attribute))
 
   (commit! [db entity value]
-    (trace "committing against: " db)
     (let [root-id (d/tempid :db.part/user)
           facts ((facts-for db entity value) root-id)]
-      (clojure.tools.trace/trace @(d/transact (:connection db)
-                                              (trace [facts])))
+      @(d/transact (:connection db)
+                   [facts])
       db))
 
   (retract! [db entity value]
@@ -119,19 +116,16 @@ agents which are just maps with :name and :callable keys"
     db)
 
   (find-by [db params]
-    (clojure.tools.trace/trace "find-by xxx" [db params])
     (let [c (:connection db)
           db (d/db c)
           build-predicate (fn [[k v]] ['?e k v])
           q {:find '[?e]
              :in '[$]
              :where (map build-predicate params)}]
-      (clojure.tools.trace/trace "q" q)
       (->> (apply concat (d/q q db))
            (map (partial d/entity db)))))
 
   (find-by-id [db id]
-    (clojure.tools.trace/trace "find-by-id" id)
     (let [c (:connection db)]
       (first (find-by db {:id id})))))
 
