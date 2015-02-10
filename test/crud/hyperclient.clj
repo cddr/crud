@@ -38,9 +38,7 @@
   (invoke client :get (location client) nil))
 
 (defn follow-collection [client]
-  (let [coll (->> (links client)
-                  (filter (rel= "collection"))
-                  first)]
+  (let [coll (get-in (body client) [:_links :collection])]
     (invoke client :get (:href coll) nil)))
 
 (defn- wrap-request [params]
@@ -61,7 +59,8 @@
                   (let [app (comp (wrap-response)
                                   hyperserver
                                   (wrap-request params))]
-                    (app (mock/request method uri))))]
+                    (app (mock/request method uri))))
+        root "http://localhost"]
 
     ;; navigate to start-point
     (swap! history conj (request :get start-point nil))
@@ -74,4 +73,4 @@
       (history [this]
         @history)
       (invoke [this method uri params]
-        (swap! history conj (request method uri params))))))
+        (swap! history conj (request method (str root uri) params))))))

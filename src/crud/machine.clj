@@ -27,7 +27,6 @@
     (if (commit! db entity value)
       (assoc ctx :entity value))))
 
-
 (defn destroy! [entity db ctx]
   (retract! db entity (:entity ctx)))
 
@@ -38,7 +37,6 @@
 
 (defn created-location [entity ctx]
   (let [value (:entity ctx)]
-
     (bidi.bidi/path-for routes :resource
                         :entity (:name entity)
                         :id (str (:id value)))))

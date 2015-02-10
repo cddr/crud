@@ -11,27 +11,30 @@
             
 (defn find-entity [app-spec req]
   (let [found? (fn [entity]
-                 (= (-> req :route-params :entity))
-                    (:name entity))]
-    (first (filter found? (:entities app-spec)))))
+                 (= (-> req :route-params :entity)
+                    (:name entity)))]
+    (->> (:entities app-spec)
+         (filter found?)
+         first)))
 
 (defn index-handler [app-spec]
   (fn [req]
-    (let [handler (resource {:allowed-methods [:get]
+    (let [links {:item (for [entity (:entities app-spec)]
+                         (publish-link :collection
+                                       {:name (:name entity)
+                                        :entity (:name entity)}))}
+
+          handler (resource {:allowed-methods [:get]
                              :available-media-types ["application/edn"]
-                             :handle-ok {:_links (for [entity (:entities app-spec)]
-                                                   
-                                                   (publish-link :collection
-                                                                 {:rel "item"
-                                                                  :name (:name entity)
-                                                                  :entity (:name entity)}))}})]
+                             :handle-ok {:_links links}})]
       (handler req))))
 
 (defn collection-handler [app-spec]
   (fn [req]
     (if-let [entity (find-entity app-spec req)]
-      (let [handler (resource (crud-collection entity (:db app-spec)))]
-        (handler req)))))
+      (do
+        (let [handler (resource (crud-collection entity (:db app-spec)))]
+          (handler req))))))
 
 (defn resource-handler [app-spec]
   (fn [req]

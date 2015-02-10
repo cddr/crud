@@ -62,9 +62,9 @@ agents which are just maps with :name and :callable keys"
             (fn reducer [acc [k v]]
               (cond
                 (vector? v) (into acc (conj (mapcat (partial mk-facts true) v)
-                                            (attr (:uniqueness k) true k [Link])))
+                                            (attr (k (:uniqueness entity)) true k [Link])))
                 (branch? v) (into acc (mk-facts true v))
-                :else       (conj acc (attr (:uniqueness k) component? k v)))))
+                :else       (conj acc (attr (k (:uniqueness entity)) component? k v)))))
 
           (mk-facts [component m]
             (reduce (factory component) [] (seq m)))]
@@ -82,8 +82,8 @@ agents which are just maps with :name and :callable keys"
                        {:db/id root-id}
                        {:entity (:name entity)})
           links (get value :_links)
-          make-link (fn [lnk]
-                      (locate (:href lnk) (:rel lnk)))]
+          make-link (fn [[rel-type lnk]]
+                      {rel-type (locate (:href lnk) rel-type)})]
       (merge props
              (->> links
                   (map make-link)
@@ -95,8 +95,10 @@ agents which are just maps with :name and :callable keys"
     (collection-links db entity (constantly true)))
 
   (present [db entity value]
-    (merge (resource-links db entity value)
-           (dissoc (into {} value) :entity)))
+    (let [relations (map :from (:links entity))]
+      (merge (resource-links db entity value)
+             (apply dissoc (into {} value)
+                    (conj relations :entity)))))
 
   (has-attr? [db attr]
     (-> (d/db (:connection db))

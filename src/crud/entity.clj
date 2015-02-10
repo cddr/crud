@@ -18,10 +18,9 @@
     [:entity] :collection
     "" :index}])
 
-(defn locate [uri rel]
-  (let [path (.getPath (URI. uri))
-        route-params (:route-params (bidi.bidi/match-route routes uri))]
-    [(keyword rel) (edn/read-string (:id route-params))]))
+(defn locate [path rel]
+  (let [route-params (:route-params (bidi.bidi/match-route routes path))]
+    [:id (edn/read-string (:id route-params))]))
 
 ;; ## Entities
 ;;
@@ -185,29 +184,36 @@
 (defn publish-link [route-id options]
   (merge
    {:href (apply path-for routes route-id (flatten (seq options)))}
-   (select-keys options [:name :href :rel :title])))
+   (select-keys options [:name :href :title])))
 
 (defn collection-links [db entity pred]
   (let [entity-name (:name entity)
         self (path-for routes :collection :entity entity-name)
         itemize (fn [item]
-                  {:rel "item"
-                   :href (path-for routes :resource
+                  {:href (path-for routes :resource
                                    :entity entity-name
                                    :id (:id item))})]
-    {:_links (concat [(publish-link :collection {:entity (:name entity)
-                                                 :rel "self"})
-                      (publish-link :collection {:entity (:name entity)
-                                                 :rel "create"})]
-                     (->> (filter pred (find-by db {:entity entity-name}))
-                          (map itemize)))}))
+    {:_links
+     {:self (publish-link :collection {:entity (:name entity)})
+      :create (publish-link :collection {:entity (:name entity)})
+      :item (->> (filter pred (find-by db {:entity entity-name}))
+                 (map itemize))}}))
+      ;; :entities (->> (filter pred (find-by db {:entity entity-name}))
+      ;;                (map itemize))}}))
 
 (defn resource-links [db entity value]
-  {:_links [(publish-link :resource {:rel "self",
-                                     :entity (:name entity),
-                                     :id (:id value)})
-            (publish-link :collection {:rel "collection",
-                                       :entity (:name entity)})]})
+  (let [self (publish-link :resource {:entity (:name entity),
+                                      :id (:id value)})
+        coll (publish-link :collection {:entity (:name entity)})
+        links (for [lnk (:links entity)]
+                (let [to (:to lnk)
+                      from (:from lnk)
+                      rel-value (from value)]
+                  {from (publish-link :resource {:entity (:name to)
+                                                 :id (:id rel-value)})}))]
+    {:_links (merge {:self self
+                     :collection coll}
+                    (apply merge links))}))
 
 ;; (defprotocol Historian
 ;;   "Historian provides an API for retrieving the history of changes made
