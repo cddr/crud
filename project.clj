@@ -1,4 +1,4 @@
-(defproject crud "0.1.0-SNAPSHOT"
+(defproject crud "0.2.0"
   :description "Create, Read, Update, Delete. Done!"
   :url "http://github.com/cddr/crud"
   :license {:name "Eclipse Public License"
