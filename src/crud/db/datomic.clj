@@ -4,7 +4,6 @@
                                  resource-links locate]]
             [crud.db :refer :all]
             [clojure.walk]
-            [integrity.datomic :as dat] ; import this dependency?
             [schema.core :as s :refer [Str Num Inst Int Bool Keyword]]
             [clojure.walk :as walk])
   (:import [java.net URL URI]))
