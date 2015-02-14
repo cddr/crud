@@ -1,5 +1,7 @@
 # crud
 
+[![Join the chat at https://gitter.im/cddr/crud](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/cddr/crud?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [![Build Status](https://img.shields.io/travis/cddr/crud/master.svg)](https://travis-ci.org/cddr/crud)
 [![Documentation](http://img.shields.io/badge/documentation-latest-green.svg)](https://cddr.github.io/crud/uberdoc.html)
 [![Stories in Ready](https://badge.waffle.io/cddr/crud.png?label=ready&title=Ready)](https://waffle.io/cddr/crud)
