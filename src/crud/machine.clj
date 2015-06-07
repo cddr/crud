@@ -1,7 +1,7 @@
 (ns crud.machine
   (:require
    [crud.db :refer [find-by-id find-by commit! retract! present]]
-   [crud.entity :refer [read-id query-schema link-schema publish-link routes]]
+   [crud.entity :refer [read-id query-schema create-schema publish-link routes]]
    [schema.core :as s :refer [Str Num Inst Int Bool Keyword]]
    [schema.coerce :refer [coercer string-coercion-matcher]])
   (:import [java.net URL URI]))
@@ -13,6 +13,7 @@
         validator #((coercer schema string-coercion-matcher) %)
         validated (validator (or (get-in ctx parsed-input-path)
                                  {}))]
+
     (if (schema.utils/error? validated)
       [false (assoc-in {} error-input-path validated)]
       [true (assoc-in {} valid-input-path validated)])))
@@ -33,7 +34,7 @@
 (defn validate! [entity ctx]
   (if (= :get (get-in ctx [:request :request-method]))
     (validate-with (query-schema entity) ctx)
-    (validate-with (link-schema entity) ctx)))
+    (validate-with (create-schema entity) ctx)))
 
 (defn created-location [entity ctx]
   (let [value (:entity ctx)]

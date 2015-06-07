@@ -33,7 +33,7 @@
 
   Returns nil if the coercion fails")
 
-  (link-schema [entity]
+  (create-schema [entity]
     "Construct a schema that defines a valid attempt to create an instance of this entity") 
 
   (query-schema [entity]
@@ -78,18 +78,19 @@
 (defrecord Entity [schema links storable uniqueness]
   EntityDefinition
   (read-id [entity id-str]
-    (let [id-reader (-> (get (:schema entity) :id)
-                        (c/coercer c/string-coercion-matcher))]
+    (let [id-reader edn/read-string]
       (id-reader id-str)))
 
-  (link-schema [entity]
+  (create-schema [entity]
     (assoc (:schema entity)
-      (s/optional-key :_links) s/Any))
+           (s/optional-key :id) s/Any
+           (s/optional-key :_links) s/Any))
 
   (query-schema [entity]
     (let [optionalize (fn [[name type]]
                         [(s/optional-key name) type])]
-      (->> (seq (:schema entity))
+      (->> (seq (merge (:schema entity)
+                       {:id Int}))
            (map optionalize)
            (into {}))))
 

@@ -77,7 +77,7 @@ agents which are just maps with :name and :callable keys"
 (defn facts-for [db entity value]
   (fn [root-id]
     (let [props (merge (select-keys (dissoc value :_links)
-                                    (keys (:schema entity)))
+                                    (keys (storage-schema entity)))
                        {:db/id root-id}
                        {:entity (:name entity)})
           links (get value :_links)

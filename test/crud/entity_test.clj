@@ -7,16 +7,17 @@
   (let [mock-entity (fn [id-type]
                       (map->Entity {:schema {:id id-type}}))]
     (testing "read-id"
-      (is (= "0XCAFEBABE" (read-id (mock-entity Str) "0XCAFEBABE")))
       (is (= 42 (read-id (mock-entity Int) "42"))))))
 
 (deftest test-query-schema
-  (let [mock-entity (fn [schema]
-                      (map->Entity {:schema schema}))]
-    (testing "all keys are optionalized"
-      (is (= {(optional-key :a) Int
-              (optional-key :b) Str}
-             (query-schema (mock-entity {:a Int, :b Str})))))))
+  (let [mock-entity (map->Entity {:schema {:a Int, :b Str}})
+        can-find-by? (fn [key]
+                       (contains? (query-schema mock-entity)
+                                  (s/optional-key key)))]
+    (testing "find by"
+      (is (can-find-by? :id))
+      (is (can-find-by? :a))
+      (is (can-find-by? :b)))))
 
 (deftest test-storage-agent
   (testing "keywords name and call themselves"

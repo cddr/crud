@@ -12,22 +12,16 @@
    [ring.mock.request :as mock]))
 
 (defentity Department
-  :schema {:id Int
-           :name Str}
-  :uniqueness {:id :db.unique/identity})
+  :schema {:name Str})
 
 (defentity Employee
-  :schema {:id Int, :name Str}
-  :links [(link :department [Department :id])]
-  :uniqueness {:id :db.unique/identity})
+  :schema {:name Str}
+  :links [(link :department [Department :id])])
 
 (defentity Cart
-  :schema {:id Int
-           :name Str
-           :items [{:id Int
-                    :qty Int
-                    :price Num}]}
-  :uniqueness {:id :db.unique/identity})
+  :schema {:name Str
+           :items [{:qty Int
+                    :price Num}]})
 
 (defn test-fixture [entities]
   (let [db (do
@@ -64,8 +58,8 @@
         (follow client (get-in (body client) [:_links :create])
                 {:method :post
                  :body {:id 1, :name "x-mas list"
-                        :items [{:id 2, :qty 10, :price 99.99}
-                                {:id 3, :qty 1, :price 50.0}]}})
+                        :items [{:qty 10, :price 99.99}
+                                {:qty 1, :price 50.0}]}})
         (is (= 201 (status client)))))))
 
 (deftest test-hypermedia
