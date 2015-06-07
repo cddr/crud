@@ -25,18 +25,14 @@ The following program implements a "tweet" API with the following features
             [prismatic.schema :as s]))
 
 (defentity User
-  :schema {:id s/Int
-           :email s/Str
+  :schema {:email s/Str
            :name s/Str
-           :secret s/Str}
-  :uniqueness {:id :db.unique/identity})
+           :secret s/Str})
 
 (defentity Tweet
-  :schema {:id s/Int
-           :created-at Date
+  :schema {:created-at Date
            :msg s/Str}
-  :links [(link :authored-by [User :id])]
-  :uniqueness {:id :db.unique/identity})
+  :links [(link :authored-by [User :id])])
 
 (let [entities [User Tweet]
       db (crud-db {:type :datomic
@@ -59,12 +55,11 @@ by storing the secret in plain text. The example below encrypts the
                        (password/encrypt (attr params))))
 
 (defentity Tweet
-  :schema {:id s/Int
-           :created-at Date
+  :schema {:created-at Date
            :authored-by User
            :msg s/Str}
   :links [(link :authored-by [User :id])]
-  :storage [:email :name (encrypt :secret)]}
+  :storage [:email :name (encrypt :secret)])
 ```
 ## License
 
