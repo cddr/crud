@@ -9,27 +9,25 @@
             [clojure.data :refer [diff]]))
 
 (defentity Department
-  :schema {:id Int
-           :name Str}
-  :uniqueness {:id :db.unique/identity})
+  :schema {:name Str})
 
 (defentity User
-  :schema {:id Int
-           :role Str
+  :schema {:role Str
            :email Str
            :name Str}
-  :uniqueness {:id :db.unique/identity}
   :links [(link :department [Department :id])])
 
 (defentity Cart
-  :schema {:id Int
-           :items [{:id Int
+  :schema {:items [{:id Int
                     :qty Int
                     :price Num}]})
 
 (defn test-db [entities]
   (d/delete-database (env :crud-db-uri))
-  (crud-db {:type :datomic, :uri (env :crud-db-uri), :entities entities}))
+  (crud-db {:type :datomic,
+            :uri (env :crud-db-uri),
+            :entities entities
+            :identity {:value-type Int}}))
 
 (deftest test-entity-attributes
   (testing "builtins"

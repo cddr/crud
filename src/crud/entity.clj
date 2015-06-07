@@ -99,7 +99,8 @@
                    (->> (:storable entity)
                         (map storage-agent)
                         (map :name)))
-      (:schema entity)))
+      (merge (:schema entity)
+             {:id s/Int})))
 
   (storable-value [entity value]
     (let [extract (fn [agent]
@@ -145,7 +146,8 @@
                    ;; (join "-" (map lower-case
                    ;;                (split (str x) #"(?=[A-Z])"))))]
    `(def ~entity-name
-      (map->Entity (merge {:name ~(fmt-name entity-name)}
+      (map->Entity (merge {:name ~(fmt-name entity-name)
+                           :uniqueness {:id :db.unique/identity}}
                           (hash-map ~@body))))))
 
 ;; ## Links

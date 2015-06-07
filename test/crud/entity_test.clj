@@ -31,22 +31,26 @@
 
 (deftest test-storage-schema
   (let [mock-entity (fn [args]
-                      (map->Entity args))]
+                      (map->Entity args))
+        will-persist? (fn [entity attr]
+                        (contains? (storage-schema entity) attr))]
     (testing "no storable specified"
-      (is (= {:a Int, :b Int}
-             (storage-schema (mock-entity {:schema {:a Int, :b Int}})))))
+      (let [e (mock-entity {:schema {:a Int, :b Int}})]
+        (is (will-persist? e :a))
+        (is (will-persist? e :b))))
 
     (testing "ignores attributes not in :storable"
-      (is (= {:a Int}
-             (storage-schema (mock-entity {:schema {:a Int, :b Int}
-                                           :storable [:a]})))))
+      (let [e (mock-entity {:schema {:a Int, :b Int}
+                            :storable [:a]})]
+        (is (not (will-persist? e :b)))))
 
     (testing "includes schema for transformed values"
       (let [mock-agent (fn [attr]
-                         {:name attr, :callable identity})]
-        (is (= {:a Int, :b Int}
-               (storage-schema (mock-entity {:schema {:a Int, :b Int}
-                                             :storable [:a (mock-agent :b)]}))))))))
+                         {:name attr, :callable identity})
+            e (mock-entity {:schema {:a Int, :b Int}
+                                             :storable [:a (mock-agent :b)]})]
+        (is (will-persist? e :a))
+        (is (will-persist? e :b))))))
 
 (deftest test-storable
   (testing "default case"
