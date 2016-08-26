@@ -5,7 +5,7 @@
 [![Stories in Ready](https://badge.waffle.io/cddr/crud.png?label=ready&title=Ready)](https://waffle.io/cddr/crud)
 
 As a developer, I want to be able to describe a resource's high-level details
-like data data integrity, associations, documentation etc. and have a system
+like data integrity, associations, documentation etc. and have a system
 that builds a corresponding API and user interface so that I can focus on tooling
 for higher value activities like integration with other systems or data analysis.
 
